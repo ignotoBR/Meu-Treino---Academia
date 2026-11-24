@@ -6,6 +6,7 @@
   <meta name="theme-color" id="metaThemeColor" content="#0b0f14" />
   <title>Meu Treino — Academia</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     :root,
     [data-theme="dark-green"] {
@@ -212,35 +213,19 @@
       color: var(--muted);
     }
 
-    .btn-google {
+    .google-btn-wrap {
       width: 100%;
-      display: inline-flex;
+      min-height: 44px;
+      display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 11px 14px;
-      border-radius: 11px;
-      border: 1px solid #dadce0;
-      background: #ffffff;
-      color: #1f2937;
-      font-size: 0.92rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: transform 0.1s, background 0.2s, box-shadow 0.2s;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
     }
 
-    .btn-google:hover:not(:disabled) {
-      background: #f8fafc;
-    }
-
-    .btn-google:active:not(:disabled) {
-      transform: scale(0.98);
-    }
-
-    .btn-google:disabled {
-      opacity: 0.65;
-      cursor: not-allowed;
+    .google-loading-hint {
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-align: center;
+      padding: 10px;
     }
 
     .auth-divider {
@@ -1097,21 +1082,15 @@
       </div>
 
       <div id="configWarning" class="auth-alert warn hidden">
-        <strong>Configuração pendente:</strong> edite este arquivo <code>index.html</code> e substitua <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> pelas chaves do seu projeto no Supabase.
+        <strong>Configuração pendente:</strong> verifique as chaves <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> no arquivo <code>index.html</code>.
       </div>
 
       <div id="authAlert" class="auth-alert"></div>
 
-      <!-- BOTÃO GOOGLE (GMAIL) -->
-      <button type="button" id="googleLoginBtn" class="btn-google" onclick="handleGoogleLogin()">
-        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
-          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-        </svg>
-        <span>Continuar com Google (Gmail)</span>
-      </button>
+      <!-- BOTÃO OFICIAL DO GOOGLE (EXIBE O NOME DO APP EM VEZ DO DOMÍNIO DO SUPABASE) -->
+      <div id="googleBtnContainer" class="google-btn-wrap">
+        <span class="google-loading-hint">Carregando botão do Google...</span>
+      </div>
 
       <div class="auth-divider">ou use e-mail e senha</div>
 
@@ -1358,10 +1337,11 @@
 
   <script>
     // =========================================================================
-    // CONFIGURAÇÃO DO SUPABASE
+    // CONFIGURAÇÃO DO SUPABASE E GOOGLE SIGN-IN DIRETO
     // =========================================================================
     const SUPABASE_URL = 'https://jlsrahxkcefraxjppcch.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_nSvjMemWuu0xfCGKodbxqA_UnUjeeE5';
+    const GOOGLE_CLIENT_ID = '21892672744-im94jce339fk4bhuvi2pmgh9s7kulb8e.apps.googleusercontent.com';
     // =========================================================================
 
     const LAST_THEME_KEY = 'meu_treino_last_theme_cloud';
@@ -1386,6 +1366,7 @@
 
     let currentUser = null;
     let enteringUserId = null;
+    let currentGoogleNonce = '';
     let state = defaultState();
     let lastSyncError = '';
     let saveDebounceTimer = null;
@@ -1464,6 +1445,93 @@
         alert(`Erro ao sincronizar com o Supabase:\n\n${lastSyncError}`);
       } else {
         forceSyncNow();
+      }
+    }
+
+    /* ---------------- GOOGLE SIGN-IN DIRETO (GIS + ID TOKEN) ---------------- */
+    async function generateGoogleNonce() {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      const rawNonce = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+      const encoded = new TextEncoder().encode(rawNonce);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashedNonce = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      return { rawNonce, hashedNonce };
+    }
+
+    async function handleGoogleCredentialResponse(response) {
+      showAuthAlert('');
+      if (!sb || !response?.credential) {
+        showAuthAlert('Não foi possível validar sua conta do Google. Tente novamente.');
+        return;
+      }
+
+      try {
+        const { data, error } = await sb.auth.signInWithIdToken({
+          provider: 'google',
+          token: response.credential,
+          nonce: currentGoogleNonce
+        });
+
+        if (error) {
+          showAuthAlert(translateAuthError(error.message));
+          return;
+        }
+
+        if (data?.user) {
+          await enterApp(data.user);
+          showToast('Login com Google realizado!');
+        }
+      } catch (err) {
+        showAuthAlert('Erro ao conectar sua conta Google. Verifique sua internet.');
+      }
+    }
+
+    async function initGoogleSignIn(attempt = 0) {
+      const container = document.getElementById('googleBtnContainer');
+      if (!container) return;
+
+      if (window.location.protocol === 'file:') {
+        container.innerHTML = '<span class="google-loading-hint">Abra pelo link do GitHub Pages para usar o login com Google.</span>';
+        return;
+      }
+
+      if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+        if (attempt < 25) {
+          setTimeout(() => initGoogleSignIn(attempt + 1), 200);
+        } else {
+          container.innerHTML = '<span class="google-loading-hint">Botão do Google indisponível offline. Use e-mail e senha abaixo.</span>';
+        }
+        return;
+      }
+
+      try {
+        const { rawNonce, hashedNonce } = await generateGoogleNonce();
+        currentGoogleNonce = rawNonce;
+
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredentialResponse,
+          nonce: hashedNonce,
+          use_fedcm_for_prompt: true
+        });
+
+        container.innerHTML = '';
+        const btnWidth = Math.min(380, Math.max(240, container.clientWidth || 340));
+        window.google.accounts.id.renderButton(container, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          width: btnWidth,
+          locale: 'pt-BR'
+        });
+      } catch (err) {
+        console.error('Erro ao inicializar Google Sign-In:', err);
+        container.innerHTML = '<span class="google-loading-hint">Não foi possível carregar o botão do Google.</span>';
       }
     }
 
@@ -1574,43 +1642,6 @@
       if (lower.includes('invalid email')) return 'Digite um endereço de e-mail válido.';
       if (lower.includes('provider is not enabled')) return 'O login com Google ainda não foi ativado no painel do Supabase.';
       return msg || 'Erro na autenticação. Tente novamente.';
-    }
-
-    async function handleGoogleLogin() {
-      showAuthAlert('');
-      if (!sb) {
-        showAuthAlert('Configure primeiro a SUPABASE_URL e SUPABASE_ANON_KEY no arquivo index.html.');
-        return;
-      }
-
-      if (window.location.protocol === 'file:') {
-        showAuthAlert('O login com Google funciona apenas pelo link online (ex.: GitHub Pages), não abrindo o arquivo direto do computador.');
-        return;
-      }
-
-      const btn = document.getElementById('googleLoginBtn');
-      btn.disabled = true;
-
-      try {
-        const redirectUrl = window.location.origin + window.location.pathname;
-        const { error } = await sb.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: redirectUrl,
-            queryParams: {
-              prompt: 'select_account'
-            }
-          }
-        });
-
-        if (error) {
-          showAuthAlert(translateAuthError(error.message));
-          btn.disabled = false;
-        }
-      } catch (err) {
-        showAuthAlert('Erro ao iniciar login com Google. Verifique sua internet.');
-        btn.disabled = false;
-      }
     }
 
     async function handleRegister(e) {
@@ -1747,11 +1778,11 @@
       state = defaultState();
       setSyncStatus('ok', '☁️ Sincronizado');
 
-      document.getElementById('googleLoginBtn').disabled = false;
       document.getElementById('appShell').classList.add('hidden');
       document.getElementById('loadingScreen').classList.add('hidden');
       document.getElementById('authScreen').classList.remove('hidden');
       switchAuthMode('login');
+      initGoogleSignIn();
       showToast('Você saiu da conta.');
     }
 
@@ -2439,10 +2470,12 @@
         } else {
           document.getElementById('loadingScreen').classList.add('hidden');
           document.getElementById('authScreen').classList.remove('hidden');
+          initGoogleSignIn();
         }
       } catch (err) {
         document.getElementById('loadingScreen').classList.add('hidden');
         document.getElementById('authScreen').classList.remove('hidden');
+        initGoogleSignIn();
         showAuthAlert('Erro ao conectar com o servidor. Verifique sua internet.');
       }
     })();
