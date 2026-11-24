@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" id="metaThemeColor" content="#0b0f14" />
   <title>Meu Treino — Academia</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root,
     [data-theme="dark-green"] {
@@ -28,6 +29,9 @@
       --danger-soft: rgba(239, 68, 68, 0.14);
       --danger-border: rgba(239, 68, 68, 0.3);
       --danger-text: #fca5a5;
+      --warn-soft: rgba(245, 158, 11, 0.15);
+      --warn-border: rgba(245, 158, 11, 0.4);
+      --warn-text: #fcd34d;
       --timer-bg: #0f172a;
       --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
       --radius: 14px;
@@ -54,6 +58,9 @@
       --danger-soft: rgba(220, 38, 38, 0.1);
       --danger-border: rgba(220, 38, 38, 0.3);
       --danger-text: #b91c1c;
+      --warn-soft: rgba(217, 119, 6, 0.12);
+      --warn-border: rgba(217, 119, 6, 0.35);
+      --warn-text: #b45309;
       --timer-bg: #ffffff;
       --shadow: 0 8px 24px rgba(15, 23, 42, 0.14);
       --radius: 14px;
@@ -80,6 +87,9 @@
       --danger-soft: rgba(239, 68, 68, 0.14);
       --danger-border: rgba(239, 68, 68, 0.3);
       --danger-text: #fca5a5;
+      --warn-soft: rgba(245, 158, 11, 0.15);
+      --warn-border: rgba(245, 158, 11, 0.4);
+      --warn-text: #fcd34d;
       --timer-bg: #18181b;
       --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
       --radius: 14px;
@@ -106,6 +116,9 @@
       --danger-soft: rgba(244, 63, 94, 0.14);
       --danger-border: rgba(244, 63, 94, 0.32);
       --danger-text: #fda4af;
+      --warn-soft: rgba(245, 158, 11, 0.15);
+      --warn-border: rgba(245, 158, 11, 0.4);
+      --warn-text: #fcd34d;
       --timer-bg: #0f172a;
       --shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
       --radius: 14px;
@@ -131,6 +144,31 @@
       display: none !important;
     }
 
+    /* ---------------- LOADING SCREEN ---------------- */
+    .loading-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
     /* ---------------- AUTH SCREEN ---------------- */
     .auth-screen {
       min-height: 100vh;
@@ -142,7 +180,7 @@
 
     .auth-card {
       width: 100%;
-      max-width: 420px;
+      max-width: 430px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 18px;
@@ -152,7 +190,7 @@
 
     .auth-brand {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
     }
 
     .auth-brand .brand-icon {
@@ -174,6 +212,56 @@
       color: var(--muted);
     }
 
+    .btn-google {
+      width: 100%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 11px 14px;
+      border-radius: 11px;
+      border: 1px solid #dadce0;
+      background: #ffffff;
+      color: #1f2937;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.2s, box-shadow 0.2s;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    }
+
+    .btn-google:hover:not(:disabled) {
+      background: #f8fafc;
+    }
+
+    .btn-google:active:not(:disabled) {
+      transform: scale(0.98);
+    }
+
+    .btn-google:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 16px 0;
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .auth-divider::before,
+    .auth-divider::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
     .auth-tabs {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -182,7 +270,7 @@
       padding: 4px;
       border-radius: 12px;
       border: 1px solid var(--border);
-      margin-bottom: 18px;
+      margin-bottom: 16px;
     }
 
     .auth-tab {
@@ -208,6 +296,7 @@
       font-size: 0.82rem;
       margin-bottom: 14px;
       display: none;
+      line-height: 1.45;
     }
 
     .auth-alert.error {
@@ -222,6 +311,13 @@
       background: var(--accent-soft);
       border: 1px solid var(--accent-border);
       color: var(--accent-badge-text);
+    }
+
+    .auth-alert.warn {
+      display: block;
+      background: var(--warn-soft);
+      border: 1px solid var(--warn-border);
+      color: var(--warn-text);
     }
 
     .auth-footer {
@@ -295,13 +391,35 @@
       letter-spacing: -0.01em;
     }
 
-    .brand span {
-      display: block;
-      font-size: 0.75rem;
+    .brand-sub {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.74rem;
       color: var(--muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .sync-pill {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent-badge-text);
+      flex-shrink: 0;
+    }
+
+    .sync-pill.syncing {
+      background: var(--warn-soft);
+      color: var(--warn-text);
+    }
+
+    .sync-pill.error {
+      background: var(--danger-soft);
+      color: var(--danger-text);
     }
 
     /* Navigation Tabs */
@@ -367,7 +485,12 @@
       background: var(--surface-2);
     }
 
-    .btn:active {
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn:active:not(:disabled) {
       transform: scale(0.98);
     }
 
@@ -376,7 +499,7 @@
       color: var(--accent-text);
     }
 
-    .btn-primary:hover {
+    .btn-primary:hover:not(:disabled) {
       background: var(--accent-hover);
     }
 
@@ -747,6 +870,18 @@
     .account-info span {
       font-size: 0.8rem;
       color: var(--muted);
+      word-break: break-all;
+    }
+
+    .provider-tag {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--surface-2);
+      color: var(--text-secondary);
     }
 
     .history-meta {
@@ -931,36 +1066,56 @@
 </head>
 <body>
 
+  <!-- TELA DE CARREGAMENTO INICIAL -->
+  <div id="loadingScreen" class="loading-screen">
+    <div class="spinner"></div>
+    <span>Carregando seus dados na nuvem...</span>
+  </div>
+
   <!-- TELA DE LOGIN / CADASTRO -->
-  <div id="authScreen" class="auth-screen">
+  <div id="authScreen" class="auth-screen hidden">
     <div class="auth-card">
       <div class="auth-brand">
         <div class="brand-icon">🏋️</div>
         <h1>Meu Treino</h1>
-        <p>Acesse sua conta para gerenciar suas fichas e cargas</p>
+        <p>Acesse sua conta de qualquer celular ou navegador</p>
       </div>
+
+      <div id="configWarning" class="auth-alert warn hidden">
+        <strong>Configuração pendente:</strong> edite este arquivo <code>index.html</code> e substitua <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> pelas chaves do seu projeto no Supabase.
+      </div>
+
+      <div id="authAlert" class="auth-alert"></div>
+
+      <!-- BOTÃO GOOGLE (GMAIL) -->
+      <button type="button" id="googleLoginBtn" class="btn-google" onclick="handleGoogleLogin()">
+        <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        <span>Continuar com Google (Gmail)</span>
+      </button>
+
+      <div class="auth-divider">ou use e-mail e senha</div>
 
       <div class="auth-tabs">
         <button type="button" class="auth-tab active" id="tabLoginBtn" onclick="switchAuthMode('login')">Entrar</button>
         <button type="button" class="auth-tab" id="tabRegisterBtn" onclick="switchAuthMode('register')">Criar Conta</button>
       </div>
 
-      <div id="authAlert" class="auth-alert"></div>
-      <div id="legacyNotice" class="auth-alert info hidden">
-        Encontramos treinos salvos anteriormente neste navegador. Eles serão vinculados automaticamente à primeira conta criada!
-      </div>
-
       <!-- FORM LOGIN -->
       <form id="loginForm" onsubmit="handleLogin(event)">
         <div class="form-group">
-          <label for="loginUsername">Usuário</label>
-          <input type="text" id="loginUsername" class="form-control" placeholder="Ex.: borges ou seu e-mail" autocomplete="username" required />
+          <label for="loginEmail">E-mail</label>
+          <input type="email" id="loginEmail" class="form-control" placeholder="seuemail@exemplo.com" autocomplete="email" required />
         </div>
         <div class="form-group">
           <label for="loginPassword">Senha</label>
           <input type="password" id="loginPassword" class="form-control" placeholder="Digite sua senha" autocomplete="current-password" required />
         </div>
-        <button type="submit" class="btn btn-primary btn-block" style="margin-top: 6px;">Entrar no Aplicativo</button>
+        <button type="submit" id="loginSubmitBtn" class="btn btn-primary btn-block" style="margin-top: 6px;">Entrar no Aplicativo</button>
       </form>
 
       <!-- FORM CADASTRO -->
@@ -970,22 +1125,22 @@
           <input type="text" id="regName" class="form-control" placeholder="Ex.: Felipe Borges" required />
         </div>
         <div class="form-group">
-          <label for="regUsername">Usuário (para login)</label>
-          <input type="text" id="regUsername" class="form-control" placeholder="Ex.: borges" autocomplete="username" required />
+          <label for="regEmail">E-mail</label>
+          <input type="email" id="regEmail" class="form-control" placeholder="seuemail@exemplo.com" autocomplete="email" required />
         </div>
         <div class="form-group">
-          <label for="regPassword">Senha (mín. 4 caracteres)</label>
-          <input type="password" id="regPassword" class="form-control" placeholder="Crie uma senha" autocomplete="new-password" minlength="4" required />
+          <label for="regPassword">Senha (mín. 6 caracteres)</label>
+          <input type="password" id="regPassword" class="form-control" placeholder="Crie uma senha" autocomplete="new-password" minlength="6" required />
         </div>
         <div class="form-group">
           <label for="regPasswordConfirm">Confirmar senha</label>
-          <input type="password" id="regPasswordConfirm" class="form-control" placeholder="Repita a senha" autocomplete="new-password" minlength="4" required />
+          <input type="password" id="regPasswordConfirm" class="form-control" placeholder="Repita a senha" autocomplete="new-password" minlength="6" required />
         </div>
-        <button type="submit" class="btn btn-primary btn-block" style="margin-top: 6px;">Criar Conta e Entrar</button>
+        <button type="submit" id="registerSubmitBtn" class="btn btn-primary btn-block" style="margin-top: 6px;">Criar Conta na Nuvem</button>
       </form>
 
       <div class="auth-footer">
-        Cada conta mantém suas próprias fichas, cargas, histórico e tema salvos separadamente neste navegador.
+        ☁️ Suas fichas, cargas, histórico e tema ficam sincronizados automaticamente na nuvem com o seu login.
       </div>
     </div>
   </div>
@@ -998,7 +1153,10 @@
           <div class="brand-icon">🏋️</div>
           <div class="brand-text">
             <h1>Meu Treino</h1>
-            <span id="headerUserGreeting">Olá!</span>
+            <div class="brand-sub">
+              <span id="headerUserGreeting">Olá!</span>
+              <span id="syncPill" class="sync-pill">☁️ Sincronizado</span>
+            </div>
           </div>
         </div>
         <div class="header-actions">
@@ -1030,42 +1188,43 @@
       <!-- ABA: AJUSTES, CONTA E BACKUP -->
       <section id="tab-ajustes" class="section">
         <div class="card">
-          <h3>Minha Conta</h3>
+          <h3>Minha Conta na Nuvem</h3>
           <div class="account-box">
             <div class="account-info">
               <strong id="accountDisplayName">Usuário</strong>
-              <span id="accountDisplayUsername">@usuario</span>
+              <span id="accountDisplayEmail">email@exemplo.com</span>
+              <div><span id="accountProviderTag" class="provider-tag">E-mail e senha</span></div>
             </div>
             <button class="btn btn-sm btn-outline" onclick="logout()">🚪 Sair</button>
           </div>
           <div class="btn-row">
-            <button class="btn btn-outline btn-sm" onclick="openModal('passwordModal')">🔑 Alterar senha</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteCurrentAccount()">🗑️ Excluir conta</button>
+            <button class="btn btn-outline btn-sm" onclick="forceSyncNow()">☁️ Sincronizar agora</button>
+            <button id="changePasswordBtn" class="btn btn-outline btn-sm" onclick="openModal('passwordModal')">🔑 Alterar senha</button>
           </div>
         </div>
 
         <div class="card">
           <h3>Aparência (Tema)</h3>
-          <p>Escolha o visual que melhor se adapta ao seu treino. A preferência fica salva na sua conta.</p>
+          <p>Escolha o visual que melhor se adapta ao seu treino. A preferência acompanha seu login em qualquer navegador.</p>
           <div class="theme-grid" id="settingsThemeGrid"></div>
         </div>
 
         <div class="card">
           <h3>Exportar dados (Backup)</h3>
-          <p>Baixe um arquivo JSON com todas as fichas, exercícios, cargas e histórico da sua conta.</p>
+          <p>Baixe uma cópia em arquivo JSON de todas as fichas, cargas e histórico da sua conta.</p>
           <button class="btn btn-primary btn-block" onclick="exportData()">⬇️ Exportar Backup (.json)</button>
         </div>
 
         <div class="card">
           <h3>Importar dados</h3>
-          <p>Restaure um arquivo de backup salvo anteriormente para a sua conta atual.</p>
+          <p>Importe um backup JSON salvo anteriormente para a sua conta na nuvem.</p>
           <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)" />
           <button class="btn btn-outline btn-block" onclick="document.getElementById('importFile').click()">⬆️ Selecionar arquivo (.json)</button>
         </div>
 
         <div class="card">
           <h3>Limpar treinos da conta</h3>
-          <p>Apaga todas as fichas e o histórico apenas da conta conectada no momento.</p>
+          <p>Apaga todas as fichas e o histórico salvos na sua conta na nuvem.</p>
           <button class="btn btn-danger btn-block" onclick="clearAllData()">🗑️ Zerar meus treinos</button>
         </div>
       </section>
@@ -1103,16 +1262,12 @@
       <h2>Alterar Senha</h2>
       <form id="passwordForm" onsubmit="handleChangePassword(event)">
         <div class="form-group">
-          <label for="currentPwd">Senha atual</label>
-          <input type="password" id="currentPwd" class="form-control" required />
-        </div>
-        <div class="form-group">
-          <label for="newPwd">Nova senha (mín. 4 caracteres)</label>
-          <input type="password" id="newPwd" class="form-control" minlength="4" required />
+          <label for="newPwd">Nova senha (mín. 6 caracteres)</label>
+          <input type="password" id="newPwd" class="form-control" minlength="6" required />
         </div>
         <div class="form-group">
           <label for="confirmNewPwd">Confirmar nova senha</label>
-          <input type="password" id="confirmNewPwd" class="form-control" minlength="4" required />
+          <input type="password" id="confirmNewPwd" class="form-control" minlength="6" required />
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-outline" onclick="closeModal('passwordModal')">Cancelar</button>
@@ -1186,11 +1341,15 @@
   <div id="toast" class="toast"></div>
 
   <script>
-    const LEGACY_STORAGE_KEY = 'meu_treino_webapp_v1';
-    const USERS_KEY = 'meu_treino_users_v2';
-    const SESSION_KEY = 'meu_treino_session_v2';
-    const USER_DATA_PREFIX = 'meu_treino_data_v2_';
-    const LAST_THEME_KEY = 'meu_treino_last_theme_v2';
+    // =========================================================================
+    // CONFIGURAÇÃO DO SUPABASE (COLE AQUI OS DADOS DO SEU PROJETO GRATUITO)
+    // =========================================================================
+    const SUPABASE_URL = 'sb_publishable_nSvjMemWuu0xfCGKodbxqA_UnUjeeE5';
+    const SUPABASE_ANON_KEY = 'sb_secret_j6DTjhrV6UCDAfqVB4_gxg_APQL4p6_';
+    // =========================================================================
+
+    const LAST_THEME_KEY = 'meu_treino_last_theme_cloud';
+    const CACHE_PREFIX = 'meu_treino_cloud_cache_';
 
     const THEMES = [
       { id: 'dark-green',  name: 'Escuro Verde',    desc: 'Padrão academia', bg: '#0b0f14', accent: '#22c55e' },
@@ -1199,8 +1358,20 @@
       { id: 'dark-blue',   name: 'Azul Noturno',    desc: 'Visual moderno',  bg: '#080d1a', accent: '#38bdf8' }
     ];
 
+    const isSupabaseConfigured =
+      SUPABASE_URL.startsWith('http') &&
+      !SUPABASE_URL.includes('COLE_SUA_') &&
+      !SUPABASE_ANON_KEY.includes('COLE_SUA_') &&
+      typeof window.supabase !== 'undefined';
+
+    const sb = isSupabaseConfigured
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
     let currentUser = null;
+    let enteringUserId = null;
     let state = defaultState();
+    let saveDebounceTimer = null;
     let timerInterval = null;
     let timerSeconds = 0;
     let timerPaused = false;
@@ -1209,6 +1380,16 @@
       const lastTheme = localStorage.getItem(LAST_THEME_KEY);
       const validTheme = THEMES.some(t => t.id === lastTheme) ? lastTheme : 'dark-green';
       return { workouts: [], activeWorkoutId: null, history: [], theme: validTheme };
+    }
+
+    function normalizeState(raw) {
+      if (!raw || typeof raw !== 'object') return defaultState();
+      return {
+        workouts: Array.isArray(raw.workouts) ? raw.workouts : [],
+        activeWorkoutId: raw.activeWorkoutId || null,
+        history: Array.isArray(raw.history) ? raw.history : [],
+        theme: THEMES.some(t => t.id === raw.theme) ? raw.theme : 'dark-green'
+      };
     }
 
     function uid() {
@@ -1229,74 +1410,89 @@
       toast.textContent = msg;
       toast.classList.add('show');
       clearTimeout(toast._t);
-      toast._t = setTimeout(() => toast.classList.remove('show'), 2400);
+      toast._t = setTimeout(() => toast.classList.remove('show'), 2500);
     }
 
-    /* ---------------- PASSWORD HASH ---------------- */
-    async function hashPassword(password, salt) {
-      const text = `${salt}:${password}`;
-      if (window.crypto && window.crypto.subtle) {
-        try {
-          const data = new TextEncoder().encode(text);
-          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-          return Array.from(new Uint8Array(hashBuffer))
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
-        } catch (e) {}
-      }
-      let h1 = 0xdeadbeef ^ text.length;
-      let h2 = 0x41c6ce57 ^ text.length;
-      for (let i = 0; i < text.length; i++) {
-        const ch = text.charCodeAt(i);
-        h1 = Math.imul(h1 ^ ch, 2654435761);
-        h2 = Math.imul(h2 ^ ch, 1597334677);
-      }
-      h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-      h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-      return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+    function setSyncStatus(status, text) {
+      const pill = document.getElementById('syncPill');
+      if (!pill) return;
+      pill.className = 'sync-pill' + (status === 'syncing' ? ' syncing' : status === 'error' ? ' error' : '');
+      pill.textContent = text;
     }
 
-    /* ---------------- USERS & AUTH ---------------- */
-    function getUsers() {
+    /* ---------------- CLOUD SYNC (SUPABASE) ---------------- */
+    async function loadCloudState(userId) {
+      setSyncStatus('syncing', '⏳ Sincronizando...');
       try {
-        const raw = localStorage.getItem(USERS_KEY);
-        return raw ? JSON.parse(raw) : [];
-      } catch (e) {
-        return [];
-      }
-    }
+        const { data, error } = await sb
+          .from('user_workouts')
+          .select('data')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-    function saveUsers(users) {
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-    }
+        if (error) throw error;
 
-    function getUserDataKey(userId) {
-      return USER_DATA_PREFIX + userId;
-    }
-
-    function loadUserState(userId) {
-      try {
-        const raw = localStorage.getItem(getUserDataKey(userId));
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          return {
-            workouts: Array.isArray(parsed.workouts) ? parsed.workouts : [],
-            activeWorkoutId: parsed.activeWorkoutId || null,
-            history: Array.isArray(parsed.history) ? parsed.history : [],
-            theme: THEMES.some(t => t.id === parsed.theme) ? parsed.theme : 'dark-green'
-          };
+        if (data && data.data) {
+          state = normalizeState(data.data);
+          localStorage.setItem(CACHE_PREFIX + userId, JSON.stringify(state));
+        } else {
+          state = defaultState();
+          await pushCloudStateNow();
         }
-      } catch (e) {
-        console.error('Erro ao carregar dados do usuário:', e);
+        setSyncStatus('ok', '☁️ Sincronizado');
+      } catch (err) {
+        console.error('Erro ao carregar dados da nuvem:', err);
+        const cached = localStorage.getItem(CACHE_PREFIX + userId);
+        state = cached ? normalizeState(JSON.parse(cached)) : defaultState();
+        setSyncStatus('error', '⚠️ Offline / Erro');
+        showToast('Não foi possível conectar à nuvem. Usando cópia local.');
       }
-      return defaultState();
     }
 
-    function saveState() {
+    async function pushCloudStateNow() {
+      if (!currentUser || !sb) return;
+      localStorage.setItem(CACHE_PREFIX + currentUser.id, JSON.stringify(state));
+      setSyncStatus('syncing', '⏳ Salvando...');
+      try {
+        const { error } = await sb
+          .from('user_workouts')
+          .upsert(
+            {
+              user_id: currentUser.id,
+              data: state,
+              updated_at: new Date().toISOString()
+            },
+            { onConflict: 'user_id' }
+          );
+        if (error) throw error;
+        setSyncStatus('ok', '☁️ Sincronizado');
+      } catch (err) {
+        console.error('Erro ao salvar na nuvem:', err);
+        setSyncStatus('error', '⚠️ Erro ao salvar');
+      }
+    }
+
+    function saveState(immediate = false) {
       if (!currentUser) return;
-      localStorage.setItem(getUserDataKey(currentUser.id), JSON.stringify(state));
+      localStorage.setItem(CACHE_PREFIX + currentUser.id, JSON.stringify(state));
+      clearTimeout(saveDebounceTimer);
+      if (immediate) {
+        pushCloudStateNow();
+      } else {
+        setSyncStatus('syncing', '⏳ Salvando...');
+        saveDebounceTimer = setTimeout(() => {
+          pushCloudStateNow();
+        }, 600);
+      }
     }
 
+    async function forceSyncNow() {
+      if (!currentUser || !sb) return;
+      await pushCloudStateNow();
+      showToast('Dados sincronizados com a nuvem!');
+    }
+
+    /* ---------------- AUTH ---------------- */
     function showAuthAlert(msg, type = 'error') {
       const box = document.getElementById('authAlert');
       if (!msg) {
@@ -1315,126 +1511,192 @@
       document.getElementById('tabRegisterBtn').classList.toggle('active', !isLogin);
       document.getElementById('loginForm').classList.toggle('hidden', !isLogin);
       document.getElementById('registerForm').classList.toggle('hidden', isLogin);
+    }
 
-      const hasLegacy = !!localStorage.getItem(LEGACY_STORAGE_KEY) && getUsers().length === 0;
-      document.getElementById('legacyNotice').classList.toggle('hidden', isLogin || !hasLegacy);
+    function translateAuthError(msg) {
+      const lower = String(msg || '').toLowerCase();
+      if (lower.includes('invalid login credentials')) return 'E-mail ou senha incorretos.';
+      if (lower.includes('email not confirmed')) return 'Confirme seu e-mail pelo link enviado antes de entrar.';
+      if (lower.includes('user already registered')) return 'Este e-mail já possui uma conta cadastrada.';
+      if (lower.includes('password should be at least')) return 'A senha deve ter pelo menos 6 caracteres.';
+      if (lower.includes('invalid email')) return 'Digite um endereço de e-mail válido.';
+      if (lower.includes('provider is not enabled')) return 'O login com Google ainda não foi ativado no painel do Supabase.';
+      return msg || 'Erro na autenticação. Tente novamente.';
+    }
+
+    async function handleGoogleLogin() {
+      showAuthAlert('');
+      if (!sb) {
+        showAuthAlert('Configure primeiro a SUPABASE_URL e SUPABASE_ANON_KEY no arquivo index.html.');
+        return;
+      }
+
+      if (window.location.protocol === 'file:') {
+        showAuthAlert('O login com Google funciona apenas pelo link online (ex.: GitHub Pages), não abrindo o arquivo direto do computador.');
+        return;
+      }
+
+      const btn = document.getElementById('googleLoginBtn');
+      btn.disabled = true;
+
+      try {
+        const redirectUrl = window.location.origin + window.location.pathname;
+        const { error } = await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: redirectUrl,
+            queryParams: {
+              prompt: 'select_account'
+            }
+          }
+        });
+
+        if (error) {
+          showAuthAlert(translateAuthError(error.message));
+          btn.disabled = false;
+        }
+      } catch (err) {
+        showAuthAlert('Erro ao iniciar login com Google. Verifique sua internet.');
+        btn.disabled = false;
+      }
     }
 
     async function handleRegister(e) {
       e.preventDefault();
       showAuthAlert('');
+      if (!sb) {
+        showAuthAlert('Configure primeiro a SUPABASE_URL e SUPABASE_ANON_KEY no arquivo index.html.');
+        return;
+      }
 
       const name = document.getElementById('regName').value.trim();
-      const usernameRaw = document.getElementById('regUsername').value.trim();
-      const username = usernameRaw.toLowerCase();
+      const email = document.getElementById('regEmail').value.trim();
       const password = document.getElementById('regPassword').value;
       const confirmPwd = document.getElementById('regPasswordConfirm').value;
 
-      if (!name || !username) {
-        showAuthAlert('Preencha seu nome e um nome de usuário.');
-        return;
-      }
-      if (/\s/.test(username)) {
-        showAuthAlert('O usuário não pode conter espaços.');
-        return;
-      }
-      if (password.length < 4) {
-        showAuthAlert('A senha deve ter pelo menos 4 caracteres.');
-        return;
-      }
       if (password !== confirmPwd) {
         showAuthAlert('As senhas não coincidem.');
         return;
       }
 
-      const users = getUsers();
-      if (users.some(u => u.username === username)) {
-        showAuthAlert('Este nome de usuário já está em uso. Escolha outro.');
-        return;
-      }
+      const btn = document.getElementById('registerSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Criando conta...';
 
-      const salt = uid();
-      const passwordHash = await hashPassword(password, salt);
-      const newUser = {
-        id: uid(),
-        name,
-        username,
-        salt,
-        passwordHash,
-        createdAt: new Date().toISOString()
-      };
+      try {
+        const { data, error } = await sb.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: name } }
+        });
 
-      const isFirstUser = users.length === 0;
-      users.push(newUser);
-      saveUsers(users);
-
-      // Migração automática de dados salvos na versão anterior para a primeira conta
-      if (isFirstUser) {
-        const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
-        if (legacyRaw) {
-          try {
-            const parsedLegacy = JSON.parse(legacyRaw);
-            localStorage.setItem(getUserDataKey(newUser.id), JSON.stringify(parsedLegacy));
-            localStorage.removeItem(LEGACY_STORAGE_KEY);
-          } catch (err) {}
+        if (error) {
+          showAuthAlert(translateAuthError(error.message));
+          return;
         }
-      }
 
-      document.getElementById('registerForm').reset();
-      loginUser(newUser);
-      showToast(`Bem-vindo(a), ${newUser.name}!`);
+        document.getElementById('registerForm').reset();
+
+        if (data.session && data.user) {
+          await enterApp(data.user);
+          showToast(`Bem-vindo(a), ${name}!`);
+        } else {
+          switchAuthMode('login');
+          showAuthAlert('Conta criada! Verifique seu e-mail para confirmar o cadastro e depois faça login.', 'info');
+        }
+      } catch (err) {
+        showAuthAlert('Erro de conexão ao criar conta. Verifique sua internet.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Criar Conta na Nuvem';
+      }
     }
 
     async function handleLogin(e) {
       e.preventDefault();
       showAuthAlert('');
+      if (!sb) {
+        showAuthAlert('Configure primeiro a SUPABASE_URL e SUPABASE_ANON_KEY no arquivo index.html.');
+        return;
+      }
 
-      const username = document.getElementById('loginUsername').value.trim().toLowerCase();
+      const email = document.getElementById('loginEmail').value.trim();
       const password = document.getElementById('loginPassword').value;
 
-      const users = getUsers();
-      const user = users.find(u => u.username === username);
-      if (!user) {
-        showAuthAlert('Usuário ou senha incorretos.');
-        return;
-      }
+      const btn = document.getElementById('loginSubmitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Entrando...';
 
-      const hash = await hashPassword(password, user.salt);
-      if (hash !== user.passwordHash) {
-        showAuthAlert('Usuário ou senha incorretos.');
-        return;
-      }
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) {
+          showAuthAlert(translateAuthError(error.message));
+          return;
+        }
 
-      document.getElementById('loginForm').reset();
-      loginUser(user);
-      showToast(`Olá, ${user.name}!`);
+        document.getElementById('loginForm').reset();
+        await enterApp(data.user);
+        showToast('Login realizado!');
+      } catch (err) {
+        showAuthAlert('Erro de conexão ao fazer login. Verifique sua internet.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Entrar no Aplicativo';
+      }
     }
 
-    function loginUser(user) {
-      currentUser = user;
-      localStorage.setItem(SESSION_KEY, user.id);
-      state = loadUserState(user.id);
+    async function enterApp(user) {
+      if (!user) return;
+      if (currentUser && currentUser.id === user.id) return;
+      if (enteringUserId === user.id) return;
+      enteringUserId = user.id;
 
-      document.getElementById('headerUserGreeting').textContent = `Olá, ${user.name}`;
-      document.getElementById('accountDisplayName').textContent = user.name;
-      document.getElementById('accountDisplayUsername').textContent = `@${user.username}`;
+      try {
+        currentUser = user;
+        const displayName =
+          user.user_metadata?.full_name ||
+          user.user_metadata?.name ||
+          (user.email ? user.email.split('@')[0] : 'Usuário');
 
-      document.getElementById('authScreen').classList.add('hidden');
-      document.getElementById('appShell').classList.remove('hidden');
+        const isGoogle = user.app_metadata?.provider === 'google';
 
-      applyTheme(state.theme, false);
-      switchTab('treinos');
-      render();
+        document.getElementById('headerUserGreeting').textContent = `Olá, ${displayName}`;
+        document.getElementById('accountDisplayName').textContent = displayName;
+        document.getElementById('accountDisplayEmail').textContent = user.email || '';
+        document.getElementById('accountProviderTag').textContent = isGoogle ? 'Conta Google (Gmail)' : 'E-mail e senha';
+        document.getElementById('changePasswordBtn').classList.toggle('hidden', isGoogle);
+
+        document.getElementById('loadingScreen').classList.add('hidden');
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('appShell').classList.remove('hidden');
+
+        await loadCloudState(user.id);
+        applyTheme(state.theme, false, false);
+        switchTab('treinos');
+        render();
+
+        if (window.location.hash && window.location.hash.includes('access_token')) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      } finally {
+        enteringUserId = null;
+      }
     }
 
-    function logout() {
+    async function logout() {
       closeTimer();
+      clearTimeout(saveDebounceTimer);
       document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
+      if (sb) {
+        try { await sb.auth.signOut(); } catch (e) {}
+      }
       currentUser = null;
-      localStorage.removeItem(SESSION_KEY);
+      enteringUserId = null;
       state = defaultState();
 
+      document.getElementById('googleLoginBtn').disabled = false;
       document.getElementById('appShell').classList.add('hidden');
+      document.getElementById('loadingScreen').classList.add('hidden');
       document.getElementById('authScreen').classList.remove('hidden');
       switchAuthMode('login');
       showToast('Você saiu da conta.');
@@ -1442,19 +1704,13 @@
 
     async function handleChangePassword(e) {
       e.preventDefault();
-      if (!currentUser) return;
+      if (!sb || !currentUser) return;
 
-      const currentPwd = document.getElementById('currentPwd').value;
       const newPwd = document.getElementById('newPwd').value;
       const confirmNewPwd = document.getElementById('confirmNewPwd').value;
 
-      const currentHash = await hashPassword(currentPwd, currentUser.salt);
-      if (currentHash !== currentUser.passwordHash) {
-        alert('A senha atual está incorreta.');
-        return;
-      }
-      if (newPwd.length < 4) {
-        alert('A nova senha deve ter pelo menos 4 caracteres.');
+      if (newPwd.length < 6) {
+        alert('A nova senha deve ter pelo menos 6 caracteres.');
         return;
       }
       if (newPwd !== confirmNewPwd) {
@@ -1462,43 +1718,26 @@
         return;
       }
 
-      const users = getUsers();
-      const idx = users.findIndex(u => u.id === currentUser.id);
-      if (idx >= 0) {
-        const newSalt = uid();
-        const newHash = await hashPassword(newPwd, newSalt);
-        users[idx].salt = newSalt;
-        users[idx].passwordHash = newHash;
-        saveUsers(users);
-        currentUser = users[idx];
+      const { error } = await sb.auth.updateUser({ password: newPwd });
+      if (error) {
+        alert(translateAuthError(error.message));
+        return;
       }
 
       document.getElementById('passwordForm').reset();
       closeModal('passwordModal');
-      showToast('Senha alterada com sucesso!');
-    }
-
-    function deleteCurrentAccount() {
-      if (!currentUser) return;
-      const confirmMsg = `Tem certeza que deseja excluir permanentemente a conta "${currentUser.name}" (@${currentUser.username}) e todos os seus treinos?`;
-      if (!confirm(confirmMsg)) return;
-
-      const users = getUsers().filter(u => u.id !== currentUser.id);
-      saveUsers(users);
-      localStorage.removeItem(getUserDataKey(currentUser.id));
-      logout();
-      showToast('Conta excluída.');
+      showToast('Senha atualizada na nuvem!');
     }
 
     /* ---------------- THEMES ---------------- */
-    function applyTheme(themeId, notify = false) {
+    function applyTheme(themeId, notify = false, persist = true) {
       const themeObj = THEMES.find(t => t.id === themeId) || THEMES[0];
       state.theme = themeObj.id;
       document.documentElement.setAttribute('data-theme', themeObj.id);
       const meta = document.getElementById('metaThemeColor');
       if (meta) meta.setAttribute('content', themeObj.bg);
       localStorage.setItem(LAST_THEME_KEY, themeObj.id);
-      if (currentUser) saveState();
+      if (persist && currentUser) saveState(true);
       renderThemeSelectors();
       if (notify) showToast(`Tema "${themeObj.name}" ativado!`);
     }
@@ -1508,7 +1747,7 @@
         <button
           type="button"
           class="theme-option ${state.theme === t.id ? 'active' : ''}"
-          onclick="applyTheme('${t.id}', true)"
+          onclick="applyTheme('${t.id}', true, true)"
         >
           <span class="theme-swatch" style="background:${t.bg};--swatch-accent:${t.accent};"></span>
           <span>
@@ -1591,7 +1830,7 @@
         showToast('Nova ficha criada!');
       }
 
-      saveState();
+      saveState(true);
       closeModal('workoutModal');
       render();
     }
@@ -1611,7 +1850,7 @@
       if (state.activeWorkoutId === id) {
         state.activeWorkoutId = state.workouts[0]?.id || null;
       }
-      saveState();
+      saveState(true);
       render();
       showToast('Ficha removida.');
     }
@@ -1707,7 +1946,7 @@
         showToast('Exercício adicionado!');
       }
 
-      saveState();
+      saveState(true);
       closeModal('exerciseModal');
       render();
     }
@@ -1717,7 +1956,7 @@
       if (!workout) return;
       if (!confirm('Remover este exercício da ficha?')) return;
       workout.exercises = workout.exercises.filter(item => item.id !== exId);
-      saveState();
+      saveState(true);
       render();
       showToast('Exercício removido.');
     }
@@ -1731,7 +1970,7 @@
       const temp = workout.exercises[idx];
       workout.exercises[idx] = workout.exercises[target];
       workout.exercises[target] = temp;
-      saveState();
+      saveState(true);
       render();
     }
 
@@ -1746,7 +1985,7 @@
       } else if (field === 'reps') {
         ex.sets[setIdx].reps = value;
       }
-      saveState();
+      saveState(false);
     }
 
     function toggleSetDone(exId, setIdx) {
@@ -1757,7 +1996,7 @@
 
       const wasDone = ex.sets[setIdx].done;
       ex.sets[setIdx].done = !wasDone;
-      saveState();
+      saveState(false);
       render();
 
       if (!wasDone) {
@@ -1813,10 +2052,10 @@
         ex.sets.forEach(s => { s.done = false; });
       });
 
-      saveState();
+      saveState(true);
       closeTimer();
       render();
-      showToast('Treino registrado no histórico!');
+      showToast('Treino salvo no histórico na nuvem!');
     }
 
     /* ---------------- TIMER ---------------- */
@@ -1945,7 +2184,7 @@
     function deleteHistory(id) {
       if (!confirm('Apagar este registro do histórico?')) return;
       state.history = state.history.filter(item => item.id !== id);
-      saveState();
+      saveState(true);
       renderHistory();
       showToast('Registro apagado.');
     }
@@ -1957,8 +2196,9 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       const today = new Date().toISOString().slice(0, 10);
+      const userSlug = (currentUser.email || 'usuario').split('@')[0];
       a.href = url;
-      a.download = `backup-treino-${currentUser.username}-${today}.json`;
+      a.download = `backup-treino-${userSlug}-${today}.json`;
       a.click();
       URL.revokeObjectURL(url);
       showToast('Backup exportado!');
@@ -1973,17 +2213,12 @@
         try {
           const parsed = JSON.parse(e.target.result);
           if (!Array.isArray(parsed.workouts)) throw new Error('Formato inválido');
-          state = {
-            workouts: parsed.workouts,
-            activeWorkoutId: parsed.activeWorkoutId || parsed.workouts[0]?.id || null,
-            history: Array.isArray(parsed.history) ? parsed.history : [],
-            theme: THEMES.some(t => t.id === parsed.theme) ? parsed.theme : state.theme
-          };
-          saveState();
-          applyTheme(state.theme, false);
+          state = normalizeState(parsed);
+          saveState(true);
+          applyTheme(state.theme, false, false);
           render();
           renderHistory();
-          showToast('Backup restaurado com sucesso!');
+          showToast('Backup importado para a nuvem!');
         } catch (err) {
           alert('Arquivo inválido. Selecione um backup JSON exportado por este aplicativo.');
         }
@@ -1993,9 +2228,9 @@
     }
 
     function clearAllData() {
-      if (!confirm('Tem certeza que deseja apagar TODAS as fichas e todo o histórico da sua conta?')) return;
+      if (!confirm('Tem certeza que deseja apagar TODAS as fichas e todo o histórico da sua conta na nuvem?')) return;
       state = { workouts: [], activeWorkoutId: null, history: [], theme: state.theme };
-      saveState();
+      saveState(true);
       closeTimer();
       render();
       renderHistory();
@@ -2128,16 +2363,34 @@
       });
     });
 
-    (function init() {
-      applyTheme(state.theme, false);
-      const savedSessionId = localStorage.getItem(SESSION_KEY);
-      const users = getUsers();
-      const sessionUser = savedSessionId ? users.find(u => u.id === savedSessionId) : null;
+    (async function init() {
+      applyTheme(state.theme, false, false);
 
-      if (sessionUser) {
-        loginUser(sessionUser);
-      } else {
-        switchAuthMode(users.length === 0 ? 'register' : 'login');
+      if (!sb) {
+        document.getElementById('loadingScreen').classList.add('hidden');
+        document.getElementById('authScreen').classList.remove('hidden');
+        document.getElementById('configWarning').classList.remove('hidden');
+        return;
+      }
+
+      sb.auth.onAuthStateChange(async (event, session) => {
+        if (session && session.user) {
+          await enterApp(session.user);
+        }
+      });
+
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session && session.user) {
+          await enterApp(session.user);
+        } else {
+          document.getElementById('loadingScreen').classList.add('hidden');
+          document.getElementById('authScreen').classList.remove('hidden');
+        }
+      } catch (err) {
+        document.getElementById('loadingScreen').classList.add('hidden');
+        document.getElementById('authScreen').classList.remove('hidden');
+        showAuthAlert('Erro ao conectar com o servidor. Verifique sua internet.');
       }
     })();
   </script>
