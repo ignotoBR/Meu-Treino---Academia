@@ -2,7 +2,7 @@
 <html lang="pt-BR" data-theme="dark-green">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" id="metaThemeColor" content="#0b0f14" />
   <title>Meu Treino — Academia</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -344,6 +344,7 @@
       gap: 6px;
       flex-wrap: wrap;
       justify-content: flex-end;
+      flex-shrink: 0;
     }
 
     .brand {
@@ -351,6 +352,7 @@
       align-items: center;
       gap: 10px;
       min-width: 0;
+      flex: 1;
     }
 
     .brand-icon {
@@ -368,6 +370,7 @@
 
     .brand-text {
       min-width: 0;
+      flex: 1;
     }
 
     .brand h1 {
@@ -379,12 +382,18 @@
     .brand-sub {
       display: flex;
       align-items: center;
-      gap: 8px;
+      flex-wrap: wrap;
+      gap: 4px 8px;
       font-size: 0.74rem;
       color: var(--muted);
-      white-space: nowrap;
+      margin-top: 2px;
+    }
+
+    #headerUserGreeting {
+      max-width: 100%;
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .sync-pill {
@@ -396,6 +405,7 @@
       background: var(--accent-soft);
       color: var(--accent-badge-text);
       flex-shrink: 0;
+      white-space: nowrap;
       cursor: pointer;
     }
 
@@ -593,14 +603,22 @@
       display: block;
     }
 
-    /* Workout Selector Pills */
+    /* Workout Selector Bar + Fixed Add Button */
+    .workout-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
     .workout-bar {
+      flex: 1;
+      min-width: 0;
       display: flex;
       align-items: center;
       gap: 8px;
       overflow-x: auto;
-      padding-bottom: 8px;
-      margin-bottom: 14px;
+      padding-bottom: 4px;
       scrollbar-width: none;
     }
 
@@ -629,7 +647,11 @@
 
     .workout-pill.add-pill {
       border-style: dashed;
+      border-color: var(--accent-border);
       color: var(--text);
+      background: var(--surface);
+      flex-shrink: 0;
+      margin-bottom: 4px;
     }
 
     /* Progress Card */
@@ -1087,7 +1109,7 @@
 
       <div id="authAlert" class="auth-alert"></div>
 
-      <!-- BOTÃO OFICIAL DO GOOGLE (EXIBE O NOME DO APP EM VEZ DO DOMÍNIO DO SUPABASE) -->
+      <!-- BOTÃO OFICIAL DO GOOGLE -->
       <div id="googleBtnContainer" class="google-btn-wrap">
         <span class="google-loading-hint">Carregando botão do Google...</span>
       </div>
@@ -1170,7 +1192,10 @@
     <main>
       <!-- ABA: TREINOS -->
       <section id="tab-treinos" class="section active">
-        <div id="workoutBar" class="workout-bar"></div>
+        <div class="workout-bar-wrap">
+          <div id="workoutBar" class="workout-bar"></div>
+          <button class="workout-pill add-pill" onclick="openWorkoutModal()">+ Nova Ficha</button>
+        </div>
         <div id="workoutContent"></div>
       </section>
 
@@ -1370,8 +1395,12 @@
     let state = defaultState();
     let lastSyncError = '';
     let saveDebounceTimer = null;
+    let hasPendingSync = false;
+
+    // Estado do cronômetro baseado em timestamp
     let timerInterval = null;
-    let timerSeconds = 0;
+    let timerEndTime = 0;
+    let timerRemaining = 0;
     let timerPaused = false;
 
     function defaultState() {
@@ -1380,18 +1409,76 @@
       return { workouts: [], activeWorkoutId: null, history: [], theme: validTheme };
     }
 
-    function normalizeState(raw) {
-      if (!raw || typeof raw !== 'object') return defaultState();
-      return {
-        workouts: Array.isArray(raw.workouts) ? raw.workouts : [],
-        activeWorkoutId: raw.activeWorkoutId || null,
-        history: Array.isArray(raw.history) ? raw.history : [],
-        theme: THEMES.some(t => t.id === raw.theme) ? raw.theme : 'dark-green'
-      };
-    }
-
     function uid() {
       return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+    }
+
+    function normalizeState(raw) {
+      if (!raw || typeof raw !== 'object') return defaultState();
+
+      const workouts = Array.isArray(raw.workouts)
+        ? raw.workouts
+            .filter(w => w && typeof w === 'object')
+            .map(w => ({
+              id: typeof w.id === 'string' && w.id.trim() ? w.id : uid(),
+              name: typeof w.name === 'string' && w.name.trim() ? w.name.trim() : 'Ficha sem nome',
+              exercises: Array.isArray(w.exercises)
+                ? w.exercises
+                    .filter(ex => ex && typeof ex === 'object')
+                    .map(ex => {
+                      const targetReps = ex.targetReps != null ? String(ex.targetReps).trim() || '10' : '10';
+                      const restNum = parseInt(ex.rest, 10);
+                      const sets = Array.isArray(ex.sets)
+                        ? ex.sets
+                            .filter(s => s && typeof s === 'object')
+                            .map(s => ({
+                              weight: Math.max(0, parseFloat(s.weight) || 0),
+                              reps: s.reps != null ? String(s.reps) : targetReps,
+                              done: Boolean(s.done)
+                            }))
+                        : [];
+
+                      return {
+                        id: typeof ex.id === 'string' && ex.id.trim() ? ex.id : uid(),
+                        name: typeof ex.name === 'string' && ex.name.trim() ? ex.name.trim() : 'Exercício',
+                        targetReps,
+                        rest: Number.isFinite(restNum) && restNum >= 10 ? restNum : 90,
+                        note: typeof ex.note === 'string' ? ex.note : '',
+                        sets: sets.length ? sets : [{ weight: 0, reps: targetReps, done: false }]
+                      };
+                    })
+                : []
+            }))
+        : [];
+
+      const history = Array.isArray(raw.history)
+        ? raw.history
+            .filter(h => h && typeof h === 'object')
+            .map(h => ({
+              id: typeof h.id === 'string' && h.id.trim() ? h.id : uid(),
+              date: h.date && !Number.isNaN(Date.parse(h.date)) ? h.date : new Date().toISOString(),
+              workoutName: typeof h.workoutName === 'string' && h.workoutName.trim() ? h.workoutName : 'Treino',
+              completedSets: Math.max(0, parseInt(h.completedSets, 10) || 0),
+              totalVolume: Math.max(0, parseFloat(h.totalVolume) || 0),
+              exercises: Array.isArray(h.exercises)
+                ? h.exercises
+                    .filter(ex => ex && typeof ex === 'object')
+                    .map(ex => ({
+                      name: typeof ex.name === 'string' ? ex.name : 'Exercício',
+                      setsDone: Math.max(0, parseInt(ex.setsDone, 10) || 0),
+                      maxWeight: Math.max(0, parseFloat(ex.maxWeight) || 0)
+                    }))
+                : []
+            }))
+        : [];
+
+      const activeWorkoutId = workouts.some(w => w.id === raw.activeWorkoutId)
+        ? raw.activeWorkoutId
+        : (workouts[0]?.id || null);
+
+      const theme = THEMES.some(t => t.id === raw.theme) ? raw.theme : 'dark-green';
+
+      return { workouts, activeWorkoutId, history, theme };
     }
 
     function escapeHtml(str) {
@@ -1550,6 +1637,7 @@
         if (data && data.data) {
           state = normalizeState(data.data);
           localStorage.setItem(CACHE_PREFIX + userId, JSON.stringify(state));
+          hasPendingSync = false;
           setSyncStatus('ok', '☁️ Sincronizado');
         } else {
           state = defaultState();
@@ -1567,6 +1655,9 @@
 
     async function pushCloudStateNow() {
       if (!currentUser || !sb) return false;
+      clearTimeout(saveDebounceTimer);
+      saveDebounceTimer = null;
+
       localStorage.setItem(CACHE_PREFIX + currentUser.id, JSON.stringify(state));
       setSyncStatus('syncing', '⏳ Salvando...');
       try {
@@ -1581,11 +1672,13 @@
             { onConflict: 'user_id' }
           );
         if (error) throw error;
+        hasPendingSync = false;
         setSyncStatus('ok', '☁️ Sincronizado');
         return true;
       } catch (err) {
         const detail = formatError(err);
         console.error('Erro ao salvar na nuvem:', err);
+        hasPendingSync = true;
         setSyncStatus('error', '⚠️ Erro ao salvar', detail);
         showToast(`Erro ao salvar: ${detail}`);
         return false;
@@ -1594,8 +1687,11 @@
 
     function saveState(immediate = false) {
       if (!currentUser) return;
+      hasPendingSync = true;
       localStorage.setItem(CACHE_PREFIX + currentUser.id, JSON.stringify(state));
       clearTimeout(saveDebounceTimer);
+      saveDebounceTimer = null;
+
       if (immediate) {
         pushCloudStateNow();
       } else {
@@ -1767,8 +1863,14 @@
     }
 
     async function logout() {
+      if (hasPendingSync && currentUser) {
+        await pushCloudStateNow();
+      }
       closeTimer();
       clearTimeout(saveDebounceTimer);
+      saveDebounceTimer = null;
+      hasPendingSync = false;
+
       document.querySelectorAll('.modal-backdrop.open').forEach(m => m.classList.remove('open'));
       if (sb) {
         try { await sb.auth.signOut(); } catch (e) {}
@@ -1925,6 +2027,17 @@
       render();
     }
 
+    function moveWorkout(id, direction) {
+      const idx = state.workouts.findIndex(item => item.id === id);
+      const target = idx + direction;
+      if (idx < 0 || target < 0 || target >= state.workouts.length) return;
+      const temp = state.workouts[idx];
+      state.workouts[idx] = state.workouts[target];
+      state.workouts[target] = temp;
+      saveState(true);
+      render();
+    }
+
     function deleteWorkout(id) {
       const w = state.workouts.find(item => item.id === id);
       if (!w) return;
@@ -2065,7 +2178,7 @@
       if (!ex || !ex.sets[setIdx]) return;
 
       if (field === 'weight') {
-        ex.sets[setIdx].weight = parseFloat(value) || 0;
+        ex.sets[setIdx].weight = Math.max(0, parseFloat(value) || 0);
       } else if (field === 'reps') {
         ex.sets[setIdx].reps = value;
       }
@@ -2142,7 +2255,7 @@
       showToast('Treino salvo no histórico na nuvem!');
     }
 
-    /* ---------------- TIMER ---------------- */
+    /* ---------------- TIMER (BASEADO EM TIMESTAMP) ---------------- */
     function playBeep() {
       try {
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
@@ -2170,29 +2283,37 @@
     }
 
     function updateTimerUI() {
-      document.getElementById('timerDisplay').textContent = formatTime(Math.max(0, timerSeconds));
-      document.getElementById('timerToggleBtn').textContent = timerPaused ? 'Retomar' : 'Pausar';
+      document.getElementById('timerDisplay').textContent = formatTime(Math.max(0, timerRemaining));
+      document.getElementById('timerToggleBtn').textContent =
+        timerRemaining <= 0 ? 'Reiniciar' : (timerPaused ? 'Retomar' : 'Pausar');
+    }
+
+    function tickTimer() {
+      if (timerPaused || !timerInterval) return;
+      const remaining = Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000));
+      if (remaining !== timerRemaining) {
+        timerRemaining = remaining;
+        updateTimerUI();
+      }
+      if (remaining <= 0) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+        timerRemaining = 0;
+        updateTimerUI();
+        playBeep();
+        showToast('Descanso finalizado! Próxima série.');
+      }
     }
 
     function startTimer(seconds, label = 'Descanso') {
       clearInterval(timerInterval);
-      timerSeconds = seconds;
+      timerRemaining = Math.max(0, Math.round(seconds));
+      timerEndTime = Date.now() + timerRemaining * 1000;
       timerPaused = false;
       document.getElementById('timerLabel').textContent = label;
       document.getElementById('timerBar').classList.add('visible');
       updateTimerUI();
-
-      timerInterval = setInterval(() => {
-        if (timerPaused) return;
-        timerSeconds--;
-        updateTimerUI();
-        if (timerSeconds <= 0) {
-          clearInterval(timerInterval);
-          timerInterval = null;
-          playBeep();
-          showToast('Descanso finalizado! Próxima série.');
-        }
-      }, 1000);
+      timerInterval = setInterval(tickTimer, 250);
     }
 
     function openTimerQuick() {
@@ -2200,22 +2321,41 @@
     }
 
     function adjustTimer(delta) {
-      timerSeconds = Math.max(0, timerSeconds + delta);
+      if (timerPaused || !timerInterval) {
+        timerRemaining = Math.max(0, timerRemaining + delta);
+        if (timerRemaining > 0 && !timerInterval && !timerPaused) {
+          startTimer(timerRemaining, document.getElementById('timerLabel').textContent);
+          return;
+        }
+      } else {
+        timerEndTime = Math.max(Date.now(), timerEndTime + delta * 1000);
+        timerRemaining = Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000));
+      }
       updateTimerUI();
     }
 
     function toggleTimer() {
-      if (timerSeconds <= 0) {
+      if (timerRemaining <= 0) {
         startTimer(60, 'Descanso');
         return;
       }
-      timerPaused = !timerPaused;
+      if (timerPaused) {
+        timerPaused = false;
+        timerEndTime = Date.now() + timerRemaining * 1000;
+        if (!timerInterval) timerInterval = setInterval(tickTimer, 250);
+      } else {
+        timerRemaining = Math.max(0, Math.ceil((timerEndTime - Date.now()) / 1000));
+        timerPaused = true;
+      }
       updateTimerUI();
     }
 
     function closeTimer() {
       clearInterval(timerInterval);
       timerInterval = null;
+      timerEndTime = 0;
+      timerRemaining = 0;
+      timerPaused = false;
       document.getElementById('timerBar').classList.remove('visible');
     }
 
@@ -2296,7 +2436,16 @@
       reader.onload = function(e) {
         try {
           const parsed = JSON.parse(e.target.result);
-          if (!Array.isArray(parsed.workouts)) throw new Error('Formato inválido');
+          if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.workouts)) {
+            throw new Error('Estrutura raiz inválida');
+          }
+          const hasInvalidWorkout = parsed.workouts.some(
+            w => !w || typeof w !== 'object' || typeof w.name !== 'string' || !Array.isArray(w.exercises)
+          );
+          if (hasInvalidWorkout) {
+            throw new Error('Uma ou mais fichas estão em formato inválido');
+          }
+
           state = normalizeState(parsed);
           saveState(true);
           applyTheme(state.theme, false, false);
@@ -2304,7 +2453,7 @@
           renderHistory();
           showToast('Backup importado para a nuvem!');
         } catch (err) {
-          alert('Arquivo inválido. Selecione um backup JSON exportado por este aplicativo.');
+          alert(`Arquivo inválido: ${err.message}. Selecione um backup JSON exportado por este aplicativo.`);
         }
       };
       reader.readAsText(file);
@@ -2326,13 +2475,11 @@
       const bar = document.getElementById('workoutBar');
       const content = document.getElementById('workoutContent');
 
-      const pillsHtml = state.workouts.map(w => `
+      bar.innerHTML = state.workouts.map(w => `
         <button class="workout-pill ${w.id === state.activeWorkoutId ? 'active' : ''}" onclick="selectWorkout('${w.id}')">
           ${escapeHtml(w.name)}
         </button>
       `).join('');
-
-      bar.innerHTML = pillsHtml + `<button class="workout-pill add-pill" onclick="openWorkoutModal()">+ Nova Ficha</button>`;
 
       const active = getActiveWorkout();
       if (!active) {
@@ -2346,6 +2493,7 @@
         return;
       }
 
+      const activeIdx = state.workouts.findIndex(w => w.id === active.id);
       let totalSets = 0;
       let doneSets = 0;
       active.exercises.forEach(ex => {
@@ -2366,6 +2514,8 @@
           <div class="workout-actions">
             <button class="btn btn-primary btn-sm" onclick="openExerciseModal()">+ Exercício</button>
             <button class="btn btn-outline btn-sm" onclick="finishWorkout()">✓ Finalizar Treino</button>
+            ${activeIdx > 0 ? `<button class="btn btn-outline btn-sm" onclick="moveWorkout('${active.id}', -1)" title="Mover ficha para a esquerda">←</button>` : ''}
+            ${activeIdx < state.workouts.length - 1 ? `<button class="btn btn-outline btn-sm" onclick="moveWorkout('${active.id}', 1)" title="Mover ficha para a direita">→</button>` : ''}
             <button class="btn btn-outline btn-sm" onclick="openWorkoutModal('${active.id}')">✏️ Renomear</button>
             <button class="btn btn-danger btn-sm" onclick="deleteWorkout('${active.id}')">🗑️ Excluir</button>
           </div>
@@ -2440,13 +2590,32 @@
       content.innerHTML = html;
     }
 
-    /* ---------------- INIT ---------------- */
+    /* ---------------- CICLO DE VIDA E EVENTOS GLOBAIS ---------------- */
     document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
       backdrop.addEventListener('click', e => {
         if (e.target === backdrop) backdrop.classList.remove('open');
       });
     });
 
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        if (hasPendingSync && currentUser) pushCloudStateNow();
+      } else if (document.visibilityState === 'visible') {
+        tickTimer();
+      }
+    });
+
+    window.addEventListener('pagehide', () => {
+      if (hasPendingSync && currentUser) pushCloudStateNow();
+    });
+
+    window.addEventListener('online', () => {
+      if (hasPendingSync && currentUser) {
+        pushCloudStateNow();
+      }
+    });
+
+    /* ---------------- INIT ---------------- */
     (async function init() {
       applyTheme(state.theme, false, false);
 
