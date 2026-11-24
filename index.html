@@ -604,22 +604,55 @@
     }
 
     /* Workout Selector Bar + Fixed Add Button */
-    .workout-bar-wrap {
+    /* Ajuste do cabeçalho no celular para não cortar o nome */
+    @media (max-width: 560px) {
+      .header-top {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+
+      .header-actions {
+        justify-content: flex-start;
+      }
+
+      .header-actions .btn {
+        flex: 1;
+      }
+    }
+
+    /* Cabeçalho da barra de fichas + botão fixo acima */
+    .workout-bar-header {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 14px;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .workout-bar-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
     }
 
     .workout-bar {
-      flex: 1;
-      min-width: 0;
+      width: 100%;
       display: flex;
       align-items: center;
       gap: 8px;
       overflow-x: auto;
-      padding-bottom: 4px;
+      padding-bottom: 6px;
+      margin-bottom: 12px;
       scrollbar-width: none;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .workout-bar.dragging {
+      cursor: grabbing;
     }
 
     .workout-bar::-webkit-scrollbar {
@@ -646,12 +679,12 @@
     }
 
     .workout-pill.add-pill {
+      padding: 6px 12px;
+      font-size: 0.8rem;
       border-style: dashed;
       border-color: var(--accent-border);
       color: var(--text);
       background: var(--surface);
-      flex-shrink: 0;
-      margin-bottom: 4px;
     }
 
     /* Progress Card */
@@ -1084,19 +1117,7 @@
     .toast.show {
       transform: translateX(-50%) translateY(0);
     }
-    .workout-bar {
-      flex: 1;
-      min-width: 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-      scrollbar-width: none;
-      cursor: grab;
-      user-select: none;
-    }
-
+    
     .workout-bar.dragging {
       cursor: grabbing;
     }
@@ -1209,10 +1230,11 @@
     <main>
       <!-- ABA: TREINOS -->
       <section id="tab-treinos" class="section active">
-        <div class="workout-bar-wrap">
-          <div id="workoutBar" class="workout-bar"></div>
+        <div class="workout-bar-header">
+          <span class="workout-bar-title">Minhas Fichas</span>
           <button class="workout-pill add-pill" onclick="openWorkoutModal()">+ Nova Ficha</button>
         </div>
+        <div id="workoutBar" class="workout-bar"></div>
         <div id="workoutContent"></div>
       </section>
 
