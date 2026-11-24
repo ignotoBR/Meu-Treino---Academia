@@ -1084,6 +1084,23 @@
     .toast.show {
       transform: translateX(-50%) translateY(0);
     }
+    .workout-bar {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .workout-bar.dragging {
+      cursor: grabbing;
+    }
+    
   </style>
 </head>
 <body>
@@ -2648,6 +2665,61 @@
         showAuthAlert('Erro ao conectar com o servidor. Verifique sua internet.');
       }
     })();
+
+// Permite clicar e arrastar (ou usar a rodinha do mouse) na barra de fichas no PC
+    (function setupWorkoutBarDrag() {
+      const bar = document.getElementById('workoutBar');
+      if (!bar) return;
+
+      let isDown = false;
+      let startX = 0;
+      let scrollLeft = 0;
+      let dragged = false;
+
+      bar.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        isDown = true;
+        dragged = false;
+        startX = e.pageX - bar.offsetLeft;
+        scrollLeft = bar.scrollLeft;
+        bar.classList.add('dragging');
+      });
+
+      window.addEventListener('mouseup', () => {
+        if (!isDown) return;
+        isDown = false;
+        bar.classList.remove('dragging');
+      });
+
+      bar.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        const x = e.pageX - bar.offsetLeft;
+        const walk = x - startX;
+        if (Math.abs(walk) > 5) {
+          dragged = true;
+          e.preventDefault();
+          bar.scrollLeft = scrollLeft - walk;
+        }
+      });
+
+      // Impede que o soltar do arraste acione o clique na ficha por engano
+      bar.addEventListener('click', (e) => {
+        if (dragged) {
+          e.preventDefault();
+          e.stopPropagation();
+          dragged = false;
+        }
+      }, true);
+
+      // Também permite rolar as fichas para os lados usando a rodinha do mouse
+      bar.addEventListener('wheel', (e) => {
+        if (bar.scrollWidth > bar.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+          e.preventDefault();
+          bar.scrollLeft += e.deltaY;
+        }
+      }, { passive: false });
+    })();
+    
   </script>
 </body>
 </html>
