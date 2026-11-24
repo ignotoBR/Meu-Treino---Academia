@@ -405,11 +405,13 @@
     .sync-pill {
       font-size: 0.7rem;
       font-weight: 600;
-      padding: 1px 7px;
+      padding: 2px 8px;
       border-radius: 999px;
+      border: none;
       background: var(--accent-soft);
       color: var(--accent-badge-text);
       flex-shrink: 0;
+      cursor: pointer;
     }
 
     .sync-pill.syncing {
@@ -420,6 +422,17 @@
     .sync-pill.error {
       background: var(--danger-soft);
       color: var(--danger-text);
+    }
+
+    .sync-error-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: var(--danger-soft);
+      border: 1px solid var(--danger-border);
+      color: var(--danger-text);
+      font-size: 0.78rem;
+      word-break: break-word;
     }
 
     /* Navigation Tabs */
@@ -1057,6 +1070,8 @@
       z-index: 60;
       transition: transform 0.25s ease;
       box-shadow: var(--shadow);
+      max-width: calc(100% - 32px);
+      text-align: center;
     }
 
     .toast.show {
@@ -1155,7 +1170,7 @@
             <h1>Meu Treino</h1>
             <div class="brand-sub">
               <span id="headerUserGreeting">Olá!</span>
-              <span id="syncPill" class="sync-pill">☁️ Sincronizado</span>
+              <button type="button" id="syncPill" class="sync-pill" onclick="showSyncDetails()">☁️ Sincronizado</button>
             </div>
           </div>
         </div>
@@ -1201,6 +1216,7 @@
             <button class="btn btn-outline btn-sm" onclick="forceSyncNow()">☁️ Sincronizar agora</button>
             <button id="changePasswordBtn" class="btn btn-outline btn-sm" onclick="openModal('passwordModal')">🔑 Alterar senha</button>
           </div>
+          <div id="syncErrorBox" class="sync-error-box hidden"></div>
         </div>
 
         <div class="card">
@@ -1371,6 +1387,7 @@
     let currentUser = null;
     let enteringUserId = null;
     let state = defaultState();
+    let lastSyncError = '';
     let saveDebounceTimer = null;
     let timerInterval = null;
     let timerSeconds = 0;
@@ -1405,19 +1422,49 @@
         .replace(/'/g, '&#39;');
     }
 
+    function formatError(err) {
+      if (!err) return 'Erro desconhecido';
+      const parts = [];
+      if (err.code) parts.push(`[${err.code}]`);
+      if (err.message) parts.push(err.message);
+      if (err.details) parts.push(err.details);
+      return parts.join(' — ') || String(err);
+    }
+
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.classList.add('show');
       clearTimeout(toast._t);
-      toast._t = setTimeout(() => toast.classList.remove('show'), 2500);
+      toast._t = setTimeout(() => toast.classList.remove('show'), 3200);
     }
 
-    function setSyncStatus(status, text) {
+    function setSyncStatus(status, text, errDetail = '') {
+      lastSyncError = errDetail;
       const pill = document.getElementById('syncPill');
-      if (!pill) return;
-      pill.className = 'sync-pill' + (status === 'syncing' ? ' syncing' : status === 'error' ? ' error' : '');
-      pill.textContent = text;
+      if (pill) {
+        pill.className = 'sync-pill' + (status === 'syncing' ? ' syncing' : status === 'error' ? ' error' : '');
+        pill.textContent = text;
+        pill.title = errDetail || text;
+      }
+      const errBox = document.getElementById('syncErrorBox');
+      if (errBox) {
+        if (errDetail) {
+          errBox.textContent = `Detalhe do erro na nuvem: ${errDetail}`;
+          errBox.classList.remove('hidden');
+        } else {
+          errBox.textContent = '';
+          errBox.classList.add('hidden');
+        }
+      }
+    }
+
+    function showSyncDetails() {
+      if (lastSyncError) {
+        alert(`Erro ao sincronizar com o Supabase:\n\n${lastSyncError}`);
+      } else {
+        forceSyncNow();
+      }
     }
 
     /* ---------------- CLOUD SYNC (SUPABASE) ---------------- */
@@ -1435,22 +1482,23 @@
         if (data && data.data) {
           state = normalizeState(data.data);
           localStorage.setItem(CACHE_PREFIX + userId, JSON.stringify(state));
+          setSyncStatus('ok', '☁️ Sincronizado');
         } else {
           state = defaultState();
           await pushCloudStateNow();
         }
-        setSyncStatus('ok', '☁️ Sincronizado');
       } catch (err) {
+        const detail = formatError(err);
         console.error('Erro ao carregar dados da nuvem:', err);
         const cached = localStorage.getItem(CACHE_PREFIX + userId);
         state = cached ? normalizeState(JSON.parse(cached)) : defaultState();
-        setSyncStatus('error', '⚠️ Offline / Erro');
-        showToast('Não foi possível conectar à nuvem. Usando cópia local.');
+        setSyncStatus('error', '⚠️ Offline / Erro', detail);
+        showToast(`Erro na nuvem: ${detail}`);
       }
     }
 
     async function pushCloudStateNow() {
-      if (!currentUser || !sb) return;
+      if (!currentUser || !sb) return false;
       localStorage.setItem(CACHE_PREFIX + currentUser.id, JSON.stringify(state));
       setSyncStatus('syncing', '⏳ Salvando...');
       try {
@@ -1466,9 +1514,13 @@
           );
         if (error) throw error;
         setSyncStatus('ok', '☁️ Sincronizado');
+        return true;
       } catch (err) {
+        const detail = formatError(err);
         console.error('Erro ao salvar na nuvem:', err);
-        setSyncStatus('error', '⚠️ Erro ao salvar');
+        setSyncStatus('error', '⚠️ Erro ao salvar', detail);
+        showToast(`Erro ao salvar: ${detail}`);
+        return false;
       }
     }
 
@@ -1488,8 +1540,8 @@
 
     async function forceSyncNow() {
       if (!currentUser || !sb) return;
-      await pushCloudStateNow();
-      showToast('Dados sincronizados com a nuvem!');
+      const ok = await pushCloudStateNow();
+      if (ok) showToast('Dados sincronizados com a nuvem!');
     }
 
     /* ---------------- AUTH ---------------- */
@@ -1693,6 +1745,7 @@
       currentUser = null;
       enteringUserId = null;
       state = defaultState();
+      setSyncStatus('ok', '☁️ Sincronizado');
 
       document.getElementById('googleLoginBtn').disabled = false;
       document.getElementById('appShell').classList.add('hidden');
