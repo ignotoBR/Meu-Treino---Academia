@@ -603,7 +603,6 @@
       display: block;
     }
 
-    /* Workout Selector Bar + Fixed Add Button */
     /* Ajuste do cabeçalho no celular para não cortar o nome */
     @media (max-width: 560px) {
       .header-top {
@@ -621,12 +620,13 @@
       }
     }
 
-    /* Cabeçalho da barra de fichas + botão fixo acima */
+    /* Cabeçalho da barra de fichas + botões fixos acima */
     .workout-bar-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
+      flex-wrap: wrap;
       margin-bottom: 10px;
     }
 
@@ -1117,11 +1117,6 @@
     .toast.show {
       transform: translateX(-50%) translateY(0);
     }
-    
-    .workout-bar.dragging {
-      cursor: grabbing;
-    }
-    
   </style>
 </head>
 <body>
@@ -1232,7 +1227,10 @@
       <section id="tab-treinos" class="section active">
         <div class="workout-bar-header">
           <span class="workout-bar-title">Minhas Fichas</span>
-          <button class="workout-pill add-pill" onclick="openWorkoutModal()">+ Nova Ficha</button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="workout-pill add-pill" onclick="openModal('aiWorkoutModal')">✨ Treino com IA</button>
+            <button class="workout-pill add-pill" onclick="openWorkoutModal()">+ Nova Ficha</button>
+          </div>
         </div>
         <div id="workoutBar" class="workout-bar"></div>
         <div id="workoutContent"></div>
@@ -1391,6 +1389,80 @@
         <div class="modal-actions">
           <button type="button" class="btn btn-outline" onclick="closeModal('exerciseModal')">Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: MONTAR TREINO COM IA -->
+  <div id="aiWorkoutModal" class="modal-backdrop">
+    <div class="modal">
+      <h2>✨ Montar Treino com IA</h2>
+      <form id="aiWorkoutForm" onsubmit="handleGenerateAIWorkout(event)">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aiGoal">Objetivo</label>
+            <select id="aiGoal" class="form-control">
+              <option value="Hipertrofia (ganho de massa)">Hipertrofia</option>
+              <option value="Emagrecimento e definição">Emagrecimento</option>
+              <option value="Ganho de força">Força</option>
+              <option value="Condicionamento físico">Condicionamento</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="aiLevel">Nível</label>
+            <select id="aiLevel" class="form-control">
+              <option value="Iniciante">Iniciante</option>
+              <option value="Intermediário" selected>Intermediário</option>
+              <option value="Avançado">Avançado</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="aiDays">Dias por semana</label>
+            <select id="aiDays" class="form-control">
+              <option value="2">2 dias</option>
+              <option value="3" selected>3 dias</option>
+              <option value="4">4 dias</option>
+              <option value="5">5 dias</option>
+              <option value="6">6 dias</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="aiDuration">Tempo por treino</label>
+            <select id="aiDuration" class="form-control">
+              <option value="30">30 min</option>
+              <option value="45">45 min</option>
+              <option value="60" selected>60 min</option>
+              <option value="90">90 min</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="aiEquipment">Local / Equipamentos</label>
+          <select id="aiEquipment" class="form-control">
+            <option value="Academia completa">Academia completa</option>
+            <option value="Halteres e banco em casa">Halteres em casa</option>
+            <option value="Apenas peso corporal (calistenia)">Apenas peso corporal</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="aiNotes">Foco muscular ou lesões (opcional)</label>
+          <input type="text" id="aiNotes" class="form-control" placeholder="Ex.: Foco em ombros / dor no joelho esquerdo" />
+        </div>
+
+        <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <input type="checkbox" id="aiReplaceWorkouts" />
+          <label for="aiReplaceWorkouts" style="margin:0;cursor:pointer;">Substituir minhas fichas atuais</label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="closeModal('aiWorkoutModal')">Cancelar</button>
+          <button type="submit" id="aiSubmitBtn" class="btn btn-primary">✨ Gerar Fichas</button>
         </div>
       </form>
     </div>
@@ -2091,6 +2163,58 @@
       showToast('Ficha removida.');
     }
 
+    /* ---------------- IA GENERATOR (SUPABASE EDGE FUNCTION) ---------------- */
+    async function handleGenerateAIWorkout(e) {
+      e.preventDefault();
+      if (!sb || !currentUser) return;
+
+      const btn = document.getElementById('aiSubmitBtn');
+      const replaceExisting = document.getElementById('aiReplaceWorkouts').checked;
+
+      const payload = {
+        goal: document.getElementById('aiGoal').value,
+        level: document.getElementById('aiLevel').value,
+        days: parseInt(document.getElementById('aiDays').value, 10),
+        duration: parseInt(document.getElementById('aiDuration').value, 10),
+        equipment: document.getElementById('aiEquipment').value,
+        notes: document.getElementById('aiNotes').value.trim()
+      };
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Montando treino...';
+
+      try {
+        const { data, error } = await sb.functions.invoke('generate-workout', {
+          body: payload
+        });
+
+        if (error) throw error;
+        if (!data || !Array.isArray(data.workouts) || !data.workouts.length) {
+          throw new Error(data?.error || 'A IA não retornou fichas válidas.');
+        }
+
+        const sanitized = normalizeState({
+          workouts: replaceExisting ? data.workouts : [...state.workouts, ...data.workouts],
+          activeWorkoutId: data.workouts[0].id,
+          history: state.history,
+          theme: state.theme
+        });
+
+        state = sanitized;
+        saveState(true);
+        document.getElementById('aiWorkoutForm').reset();
+        closeModal('aiWorkoutModal');
+        render();
+        showToast(`✨ ${data.workouts.length} ficha(s) criada(s) com IA!`);
+      } catch (err) {
+        console.error('Erro ao gerar treino com IA:', err);
+        alert(`Não foi possível gerar o treino: ${err.message || 'verifique sua conexão'}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '✨ Gerar Fichas';
+      }
+    }
+
     /* ---------------- EXERCISES ---------------- */
     function openExerciseModal(editId = null) {
       const workout = getActiveWorkout();
@@ -2525,8 +2649,11 @@
         content.innerHTML = `
           <div class="empty-state">
             <h2>Monte seu treino do zero</h2>
-            <p>Crie sua primeira ficha (ex.: Treino A, Treino B, Pernas) para começar a cadastrar seus exercícios e cargas.</p>
-            <button class="btn btn-primary" onclick="openWorkoutModal()">+ Criar Primeira Ficha</button>
+            <p>Crie sua primeira ficha manualmente ou deixe a IA montar um plano personalizado para você.</p>
+            <div class="btn-row" style="justify-content:center;">
+              <button class="btn btn-primary" onclick="openModal('aiWorkoutModal')">✨ Montar com IA</button>
+              <button class="btn btn-outline" onclick="openWorkoutModal()">+ Criar Manualmente</button>
+            </div>
           </div>
         `;
         return;
@@ -2688,7 +2815,7 @@
       }
     })();
 
-// Permite clicar e arrastar (ou usar a rodinha do mouse) na barra de fichas no PC
+    // Permite clicar e arrastar (ou usar a rodinha do mouse) na barra de fichas no PC
     (function setupWorkoutBarDrag() {
       const bar = document.getElementById('workoutBar');
       if (!bar) return;
@@ -2724,7 +2851,6 @@
         }
       });
 
-      // Impede que o soltar do arraste acione o clique na ficha por engano
       bar.addEventListener('click', (e) => {
         if (dragged) {
           e.preventDefault();
@@ -2733,7 +2859,6 @@
         }
       }, true);
 
-      // Também permite rolar as fichas para os lados usando a rodinha do mouse
       bar.addEventListener('wheel', (e) => {
         if (bar.scrollWidth > bar.clientWidth && Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
           e.preventDefault();
@@ -2741,7 +2866,6 @@
         }
       }, { passive: false });
     })();
-    
   </script>
 </body>
 </html>
