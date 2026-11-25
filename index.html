@@ -2728,7 +2728,7 @@
             const exName = cols[2] || 'Exercício';
             const setsDone = Math.max(0, parseInt(cols[3], 10) || 0);
             const maxWeight = Math.max(0, parseFloat(String(cols[4] || '0').replace(',', '.')) || 0);
-            const totalVolume = Math.max(0, parseFloat(String(cols[5] || '0').replace(',', '.')) || 0);
+            const exVolume = Math.max(0, parseFloat(String(cols[5] || '0').replace(',', '.')) || 0);
 
             const key = `${isoDate}__${workoutName}`;
             if (!grouped.has(key)) {
@@ -2737,16 +2737,16 @@
                 date: isoDate,
                 workoutName,
                 completedSets: 0,
-                totalVolume,
+                totalVolume: 0,
                 exercises: []
               });
             }
 
             const entry = grouped.get(key);
             entry.completedSets += setsDone;
-            if (totalVolume > entry.totalVolume) entry.totalVolume = Math.round(totalVolume);
+            entry.totalVolume += Math.round(exVolume);
             if (exName !== '-') {
-              entry.exercises.push({ name: exName, setsDone, maxWeight });
+              entry.exercises.push({ name: exName, setsDone, maxWeight, volume: Math.round(exVolume) });
             }
           }
 
