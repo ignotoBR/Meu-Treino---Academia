@@ -1586,7 +1586,8 @@
                     .map(ex => ({
                       name: typeof ex.name === 'string' ? ex.name : 'Exercício',
                       setsDone: Math.max(0, parseInt(ex.setsDone, 10) || 0),
-                      maxWeight: Math.max(0, parseFloat(ex.maxWeight) || 0)
+                      maxWeight: Math.max(0, parseFloat(ex.maxWeight) || 0),
+                      volume: Math.max(0, parseFloat(ex.volume) || 0)
                     }))
                 : []
             }))
@@ -2394,13 +2395,16 @@
       workout.exercises.forEach(ex => {
         let exDone = 0;
         let maxWeight = 0;
+        let exVolume = 0;
         ex.sets.forEach(s => {
           if (s.done) {
             completedSets++;
             exDone++;
             const w = parseFloat(s.weight) || 0;
             const r = parseInt(String(s.reps), 10) || 0;
-            totalVolume += w * r;
+            const vol = w * r;
+            totalVolume += vol;
+            exVolume += vol;
             if (w > maxWeight) maxWeight = w;
           }
         });
@@ -2408,7 +2412,8 @@
           summaryExercises.push({
             name: ex.name,
             setsDone: exDone,
-            maxWeight
+            maxWeight,
+            volume: Math.round(exVolume)
           });
         }
       });
@@ -2621,7 +2626,7 @@
         return;
       }
 
-      const headers = ['Data', 'Ficha', 'Exercicio', 'Series Concluidas', 'Carga Maxima (kg)', 'Volume Total Treino (kg)'];
+      const headers = ['Data', 'Ficha', 'Exercicio', 'Series Concluidas', 'Carga Maxima (kg)', 'Volume do Exercicio (kg)'];
       const rows = [headers.join(';')];
 
       state.history.forEach(item => {
@@ -2633,7 +2638,7 @@
 
         const exercises = item.exercises && item.exercises.length
           ? item.exercises
-          : [{ name: '-', setsDone: item.completedSets, maxWeight: 0 }];
+          : [{ name: '-', setsDone: item.completedSets, maxWeight: 0, volume: item.totalVolume || 0 }];
 
         exercises.forEach(ex => {
           rows.push([
@@ -2642,12 +2647,11 @@
             csvEscape(ex.name),
             ex.setsDone,
             String(ex.maxWeight).replace('.', ','),
-            String(item.totalVolume).replace('.', ',')
+            String(ex.volume ?? 0).replace('.', ',')
           ].join(';'));
         });
       });
 
-      // \uFEFF garante acentuação correta ao abrir no Excel
       const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
