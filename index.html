@@ -1267,6 +1267,15 @@
         </div>
 
         <div class="card">
+          <div class="card">
+          <h3>Histórico em Planilha (Excel / Google Sheets)</h3>
+          <p>Exporte seu histórico de treinos para abrir em planilhas ou importe registros salvos em formato CSV.</p>
+          <div class="btn-row">
+            <button class="btn btn-primary btn-sm" onclick="exportHistoryCSV()">📊 Exportar Planilha (.csv)</button>
+            <input type="file" id="importCsvFile" accept=".csv,text/csv" style="display:none" onchange="importHistoryCSV(event)" />
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('importCsvFile').click()">📥 Importar Planilha (.csv)</button>
+          </div>
+        </div>
           <h3>Exportar dados (Backup)</h3>
           <p>Baixe uma cópia em arquivo JSON de todas as fichas, cargas e histórico da sua conta.</p>
           <button class="btn btn-primary btn-block" onclick="exportData()">⬇️ Exportar Backup (.json)</button>
@@ -2599,6 +2608,167 @@
       a.click();
       URL.revokeObjectURL(url);
       showToast('Backup exportado!');
+    }
+
+    function csvEscape(val) {
+      const str = String(val ?? '').replace(/"/g, '""');
+      return /[;"\n\r]/.test(str) ? `"${str}"` : str;
+    }
+
+    function exportHistoryCSV() {
+      if (!state.history.length) {
+        showToast('Nenhum treino no histórico para exportar.');
+        return;
+      }
+
+      const headers = ['Data', 'Ficha', 'Exercicio', 'Series Concluidas', 'Carga Maxima (kg)', 'Volume Total Treino (kg)'];
+      const rows = [headers.join(';')];
+
+      state.history.forEach(item => {
+        const dt = new Date(item.date);
+        const dateStr = dt.toLocaleDateString('pt-BR', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit'
+        }).replace(',', '');
+
+        const exercises = item.exercises && item.exercises.length
+          ? item.exercises
+          : [{ name: '-', setsDone: item.completedSets, maxWeight: 0 }];
+
+        exercises.forEach(ex => {
+          rows.push([
+            csvEscape(dateStr),
+            csvEscape(item.workoutName),
+            csvEscape(ex.name),
+            ex.setsDone,
+            String(ex.maxWeight).replace('.', ','),
+            String(item.totalVolume).replace('.', ',')
+          ].join(';'));
+        });
+      });
+
+      // \uFEFF garante acentuação correta ao abrir no Excel
+      const blob = new Blob(['\uFEFF' + rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const today = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = `historico-treinos-${today}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Planilha (.csv) exportada!');
+    }
+
+    function parseCsvDate(str) {
+      const s = String(str || '').trim();
+      // Aceita formato brasileiro: DD/MM/AAAA HH:MM ou DD/MM/AAAA
+      const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}))?/);
+      if (br) {
+        const d = new Date(
+          parseInt(br[3], 10),
+          parseInt(br[2], 10) - 1,
+          parseInt(br[1], 10),
+          parseInt(br[4] || '12', 10),
+          parseInt(br[5] || '0', 10)
+        );
+        if (!Number.isNaN(d.getTime())) return d.toISOString();
+      }
+      const parsed = Date.parse(s);
+      return Number.isNaN(parsed) ? new Date().toISOString() : new Date(parsed).toISOString();
+    }
+
+    function splitCsvLine(line, sep) {
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === sep && !inQuotes) {
+          result.push(cur.trim());
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      result.push(cur.trim());
+      return result;
+    }
+
+    function importHistoryCSV(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const text = String(e.target.result || '').replace(/^\uFEFF/, '');
+          const lines = text.split(/\r?\n/).filter(l => l.trim());
+          if (lines.length < 2) throw new Error('A planilha está vazia.');
+
+          const sep = lines[0].includes(';') ? ';' : ',';
+          const grouped = new Map();
+
+          for (let i = 1; i < lines.length; i++) {
+            const cols = splitCsvLine(lines[i], sep);
+            if (cols.length < 4) continue;
+
+            const isoDate = parseCsvDate(cols[0]);
+            const workoutName = cols[1] || 'Treino Importado';
+            const exName = cols[2] || 'Exercício';
+            const setsDone = Math.max(0, parseInt(cols[3], 10) || 0);
+            const maxWeight = Math.max(0, parseFloat(String(cols[4] || '0').replace(',', '.')) || 0);
+            const totalVolume = Math.max(0, parseFloat(String(cols[5] || '0').replace(',', '.')) || 0);
+
+            const key = `${isoDate}__${workoutName}`;
+            if (!grouped.has(key)) {
+              grouped.set(key, {
+                id: uid(),
+                date: isoDate,
+                workoutName,
+                completedSets: 0,
+                totalVolume,
+                exercises: []
+              });
+            }
+
+            const entry = grouped.get(key);
+            entry.completedSets += setsDone;
+            if (totalVolume > entry.totalVolume) entry.totalVolume = Math.round(totalVolume);
+            if (exName !== '-') {
+              entry.exercises.push({ name: exName, setsDone, maxWeight });
+            }
+          }
+
+          if (!grouped.size) throw new Error('Nenhum registro válido encontrado na planilha.');
+
+          // Evita duplicar treinos com mesma data e nome de ficha
+          const existingKeys = new Set(state.history.map(h => `${h.date}__${h.workoutName}`));
+          let added = 0;
+
+          grouped.forEach((entry, key) => {
+            if (!existingKeys.has(key)) {
+              state.history.push(entry);
+              added++;
+            }
+          });
+
+          state.history.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+          saveState(true);
+          renderHistory();
+          showToast(added > 0 ? `${added} treino(s) importado(s) da planilha!` : 'Todos os treinos da planilha já estavam no histórico.');
+        } catch (err) {
+          alert(`Erro ao importar planilha: ${err.message}`);
+        }
+      };
+      reader.readAsText(file, 'UTF-8');
+      event.target.value = '';
     }
 
     function importData(event) {
