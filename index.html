@@ -1603,11 +1603,21 @@
 
     function formatError(err) {
       if (!err) return 'Erro desconhecido';
-      const parts = [];
-      if (err.code) parts.push(`[${err.code}]`);
-      if (err.message) parts.push(err.message);
-      if (err.details) parts.push(err.details);
-      return parts.join(' — ') || String(err);
+      const msg = String(err.message || err || '');
+      const lower = msg.toLowerCase();
+
+      if (
+        !navigator.onLine ||
+        lower.includes('failed to fetch') ||
+        lower.includes('networkerror') ||
+        lower.includes('load failed') ||
+        lower.includes('fetch')
+      ) {
+        return 'Sem conexão — salvo no celular (sincroniza quando voltar).';
+      }
+
+      const cleanMsg = msg.split('\n')[0].slice(0, 120);
+      return err.code ? `[${err.code}] ${cleanMsg}` : cleanMsg;
     }
 
     function showToast(msg) {
