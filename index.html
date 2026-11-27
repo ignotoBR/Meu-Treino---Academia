@@ -1123,6 +1123,51 @@
     .toast.show {
       transform: translateX(-50%) translateY(0);
     }
+
+    .tabs-carousel-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .tabs-arrow {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 5;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.7);
+      color: #fff;
+      font-size: 16px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      backdrop-filter: blur(4px);
+    }
+    .tabs-arrow.visible {
+      opacity: 0.8;
+      pointer-events: auto;
+    }
+    .tabs-arrow.left { left: 2px; }
+    .tabs-arrow.right { right: 2px; }
+    .badge-next {
+      background: #22c55e;
+      color: #fff;
+      font-size: 0.65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 999px;
+      margin-left: 6px;
+      vertical-align: middle;
+      text-transform: uppercase;
+    }
   </style>
 </head>
 <body>
@@ -1238,7 +1283,27 @@
             <button class="workout-pill add-pill" onclick="openWorkoutModal()">+ Nova Ficha</button>
           </div>
         </div>
-        <div id="workoutBar" class="workout-bar"></div>
+        <div class="tabs-carousel-wrap">
+    <button type="button" class="tabs-arrow left" id="tabsArrowLeft" onclick="scrollWorkoutTabs(-180)" aria-label="Fichas anteriores">‹</button>
+    <div id="workoutBar" class="workout-bar"></div>
+    <button type="button" class="tabs-arrow right" id="tabsArrowRight" onclick="scrollWorkoutTabs(180)" aria-label="Próximas fichas">›</button>
+  </div>
+
+  <div class="card" id="cycleGoalCard" style="padding: 12px 14px; margin-bottom: 12px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+      <strong style="font-size:0.9rem;">🎯 Meta da Ficha: <span id="cycleProgressText">0 / 20</span></strong>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-outline btn-sm" onclick="editCycleGoal()">Meta</button>
+        <button class="btn btn-outline btn-sm" onclick="resetCycleCounter()">Zerar</button>
+      </div>
+    </div>
+    <div style="height:6px; background:rgba(148,163,184,0.25); border-radius:999px; margin-top:8px; overflow:hidden;">
+      <div id="cycleProgressBar" style="height:100%; width:0%; background:#2563eb; transition:width 0.3s;"></div>
+    </div>
+    <div id="cycleGoalAlert" style="display:none; margin-top:8px; font-size:0.82rem; color:#22c55e; font-weight:600;">
+      🎉 Meta atingida! Hora de atualizar ou gerar um novo treino.
+    </div>
+  </div>
         <div id="workoutContent"></div>
       </section>
 
@@ -2837,9 +2902,12 @@
 
       bar.innerHTML = state.workouts.map(w => `
         <button class="workout-pill ${w.id === state.activeWorkoutId ? 'active' : ''}" onclick="selectWorkout('${w.id}')">
-          ${escapeHtml(w.name)}
+          ${escapeHtml(w.name)}${w.id === state.nextWorkoutId ? ' <span class="badge-next">Próximo</span>' : ''}
         </button>
       `).join('');
+
+      if (typeof updateTabsArrows === 'function') updateTabsArrows();
+      if (typeof renderCycleGoal === 'function') renderCycleGoal();
 
       const active = getActiveWorkout();
       if (!active) {
@@ -3105,6 +3173,65 @@
      }
      setTimeout(checkSessionTimeout, 3000);
    });
+
+function updateTabsArrows() {
+      const el = document.getElementById('workoutBar');
+      const leftBtn = document.getElementById('tabsArrowLeft');
+      const rightBtn = document.getElementById('tabsArrowRight');
+      if (!el || !leftBtn || !rightBtn) return;
+
+      leftBtn.classList.toggle('visible', el.scrollLeft > 8);
+      rightBtn.classList.toggle('visible', el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
+    }
+
+    function scrollWorkoutTabs(amount) {
+      const el = document.getElementById('workoutBar');
+      if (el) el.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+
+    function renderCycleGoal() {
+      if (typeof state === 'undefined') return;
+      const goal = Math.max(1, parseInt(state.cycleGoal, 10) || 20);
+      const done = Math.max(0, parseInt(state.cycleCompleted, 10) || 0);
+      const pct = Math.min(100, Math.round((done / goal) * 100));
+
+      const txt = document.getElementById('cycleProgressText');
+      const bar = document.getElementById('cycleProgressBar');
+      const alertEl = document.getElementById('cycleGoalAlert');
+      if (txt) txt.textContent = `${done} / ${goal} treinos`;
+      if (bar) {
+        bar.style.width = `${pct}%`;
+        bar.style.background = done >= goal ? '#22c55e' : '#2563eb';
+      }
+      if (alertEl) alertEl.style.display = done >= goal ? 'block' : 'none';
+    }
+
+    function editCycleGoal() {
+      const val = prompt('Quantos treinos quer fazer antes de trocar de ficha?', state.cycleGoal || 20);
+      if (val === null) return;
+      const num = parseInt(val, 10);
+      if (!num || num < 1) return showToast('Digite um número válido maior que 0.');
+      state.cycleGoal = num;
+      saveState(true);
+      renderCycleGoal();
+    }
+
+    function resetCycleCounter() {
+      if (!confirm('Zerar o contador de treinos deste ciclo?')) return;
+      state.cycleCompleted = 0;
+      saveState(true);
+      renderCycleGoal();
+    }
+
+    document.getElementById('workoutBar')?.addEventListener('scroll', updateTabsArrows);
+    window.addEventListener('resize', updateTabsArrows);
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        updateTabsArrows();
+        renderCycleGoal();
+      }, 600);
+    });
+    
   </script>
 </body>
 </html>
