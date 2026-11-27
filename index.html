@@ -1274,6 +1274,13 @@
 
         <div class="card">
           <div class="card">
+           <h3>Cronômetro de Descanso</h3>
+            <label style="display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer;">
+            <span>Ativar timer automático ao marcar uma série</span>
+           <input type="checkbox" id="toggleTimerEnabled" onchange="toggleTimerSetting(this.checked)" />
+          </label>
+         </div>
+          <div class="card">
           <h3>Histórico em Planilha (Excel / Google Sheets)</h3>
           <p>Exporte seu histórico de treinos para abrir em planilhas ou importe registros salvos em formato CSV.</p>
           <div class="btn-row">
@@ -1282,18 +1289,8 @@
             <button class="btn btn-outline btn-sm" onclick="document.getElementById('importCsvFile').click()">📥 Importar Planilha (.csv)</button>
           </div>
         </div>
-          <h3>Exportar dados (Backup)</h3>
-          <p>Baixe uma cópia em arquivo JSON de todas as fichas, cargas e histórico da sua conta.</p>
-          <button class="btn btn-primary btn-block" onclick="exportData()">⬇️ Exportar Backup (.json)</button>
         </div>
-
-        <div class="card">
-          <h3>Importar dados</h3>
-          <p>Importe um backup JSON salvo anteriormente para a sua conta na nuvem.</p>
-          <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(event)" />
-          <button class="btn btn-outline btn-block" onclick="document.getElementById('importFile').click()">⬆️ Selecionar arquivo (.json)</button>
-        </div>
-
+          
         <div class="card">
           <h3>Limpar treinos da conta</h3>
           <p>Apaga todas as fichas e o histórico salvos na sua conta na nuvem.</p>
@@ -2499,6 +2496,7 @@
     }
 
     function startTimer(seconds, label = 'Descanso') {
+      if (state.timerEnabled === false) return;
       clearInterval(timerInterval);
       timerRemaining = Math.max(0, Math.round(seconds));
       timerEndTime = Date.now() + timerRemaining * 1000;
@@ -2626,6 +2624,15 @@
       return /[;"\n\r]/.test(str) ? `"${str}"` : str;
     }
 
+    function toggleTimerSetting(enabled) {
+   state.timerEnabled = Boolean(enabled);
+   if (!state.timerEnabled && typeof stopTimer === 'function') {
+     stopTimer();
+   }
+   saveState(true);
+   showToast(state.timerEnabled ? 'Timer de descanso ativado.' : 'Timer de descanso desativado.');
+ }
+    
     function exportHistoryCSV() {
       if (!state.history.length) {
         showToast('Nenhum treino no histórico para exportar.');
@@ -3061,6 +3068,43 @@
         navigator.serviceWorker.register('./service-worker.js').catch(() => {});
       });
     }
+
+    const SESSION_LIMIT_MS = 6 * 60 * 60 * 1000; // 6 horas
+
+ function markSessionStart() {
+   if (!localStorage.getItem('meu_treino_session_start')) {
+     localStorage.setItem('meu_treino_session_start', String(Date.now()));
+   }
+ }
+
+   async function checkSessionTimeout() {
+     if (typeof currentUser === 'undefined' || !currentUser) return;
+     const start = parseInt(localStorage.getItem('meu_treino_session_start') || '0', 10);
+     if (!start) {
+       markSessionStart();
+       return;
+     }
+     if (Date.now() - start >= SESSION_LIMIT_MS) {
+       try {
+         if (typeof pushCloudStateNow === 'function') await pushCloudStateNow();
+       } catch (_) {}
+       localStorage.removeItem('meu_treino_session_start');
+       await supabaseClient.auth.signOut();
+       showToast('Sessão encerrada após 6h. Seus dados foram salvos.');
+     }
+   }
+  
+   setInterval(checkSessionTimeout, 60 * 1000);
+   document.addEventListener('visibilitychange', () => {
+     if (document.visibilityState === 'visible') checkSessionTimeout();
+   });
+   window.addEventListener('load', () => {
+     const timerChk = document.getElementById('toggleTimerEnabled');
+     if (timerChk && typeof state !== 'undefined') {
+       timerChk.checked = state.timerEnabled !== false;
+     }
+     setTimeout(checkSessionTimeout, 3000);
+   });
   </script>
 </body>
 </html>
