@@ -1342,8 +1342,7 @@
         </div>
 
         <div class="card">
-          <div class="card">
-           <h3>Cronômetro de Descanso</h3>
+          <h3>Cronômetro de Descanso</h3>
             <label style="display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer;">
             <span>Ativar timer automático ao marcar uma série</span>
            <input type="checkbox" id="toggleTimerEnabled" onchange="toggleTimerSetting(this.checked)" />
@@ -1357,7 +1356,6 @@
             <input type="file" id="importCsvFile" accept=".csv,text/csv" style="display:none" onchange="importHistoryCSV(event)" />
             <button class="btn btn-outline btn-sm" onclick="document.getElementById('importCsvFile').click()">📥 Importar Planilha (.csv)</button>
           </div>
-        </div>
         </div>
           
         <div class="card">
@@ -2075,6 +2073,7 @@
     }
 
     async function logout() {
+      localStorage.removeItem('meu_treino_session_start');
       if (hasPendingSync && currentUser) {
         await pushCloudStateNow();
       }
@@ -2517,6 +2516,12 @@
         ex.sets.forEach(s => { s.done = false; });
       });
 
+      const currentIdx = state.workouts.findIndex(w => w.id === workout.id);
+      if (currentIdx !== -1 && state.workouts.length > 0) {
+        const nextIdx = (currentIdx + 1) % state.workouts.length;
+        state.nextWorkoutId = state.workouts[nextIdx].id;
+      }
+      state.cycleCompleted = (parseInt(state.cycleCompleted, 10) || 0) + 1;
       saveState(true);
       closeTimer();
       render();
@@ -2702,14 +2707,14 @@
       return /[;"\n\r]/.test(str) ? `"${str}"` : str;
     }
 
-    function toggleTimerSetting(enabled) {
-   state.timerEnabled = Boolean(enabled);
-   if (!state.timerEnabled && typeof stopTimer === 'function') {
-     stopTimer();
-   }
-   saveState(true);
-   showToast(state.timerEnabled ? 'Timer de descanso ativado.' : 'Timer de descanso desativado.');
- }
+   function toggleTimerSetting(enabled) {
+      state.timerEnabled = Boolean(enabled);
+      if (!state.timerEnabled) {
+        closeTimer();
+      }
+      saveState(true);
+      showToast(state.timerEnabled ? 'Timer de descanso ativado.' : 'Timer de descanso desativado.');
+    }
     
     function exportHistoryCSV() {
       if (!state.history.length) {
@@ -3172,7 +3177,7 @@
          if (typeof pushCloudStateNow === 'function') await pushCloudStateNow();
        } catch (_) {}
        localStorage.removeItem('meu_treino_session_start');
-       await supabaseClient.auth.signOut();
+       await logout();
        showToast('Sessão encerrada após 6h. Seus dados foram salvos.');
      }
    }
