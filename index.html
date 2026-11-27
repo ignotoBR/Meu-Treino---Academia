@@ -1671,11 +1671,16 @@
 
       const theme = THEMES.some(t => t.id === raw.theme) ? raw.theme : 'dark-green';
 
-      return { workouts, activeWorkoutId, history, theme };
-      nextWorkoutId: raw && typeof raw.nextWorkoutId === 'string' ? raw.nextWorkoutId : null,
+      return {
+        workouts,
+        activeWorkoutId,
+        history,
+        theme,
+        nextWorkoutId: raw && typeof raw.nextWorkoutId === 'string' ? raw.nextWorkoutId : null,
         cycleGoal: Math.max(1, parseInt(raw?.cycleGoal, 10) || 20),
         cycleCompleted: Math.max(0, parseInt(raw?.cycleCompleted, 10) || 0),
-        timerEnabled: raw?.timerEnabled !== false,
+        timerEnabled: raw?.timerEnabled !== false
+      };
     }
 
     function escapeHtml(str) {
@@ -2916,6 +2921,8 @@
 
       if (typeof updateTabsArrows === 'function') updateTabsArrows();
       if (typeof renderCycleGoal === 'function') renderCycleGoal();
+      const timerChk = document.getElementById('toggleTimerEnabled');
+      if (timerChk) timerChk.checked = state.timerEnabled !== false;
 
       const active = getActiveWorkout();
       if (!active) {
